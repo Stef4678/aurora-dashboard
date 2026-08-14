@@ -12,6 +12,7 @@ export class DashboardView extends ItemView {
 	private dropTarget!: HTMLElement;
 	private handles = new Map<string, { dispose?: () => void }>();
 	private cleanups: Array<() => void> = [];
+	private editSnapshot: WidgetInstance[] | null = null;
 
 	constructor(leaf: WorkspaceLeaf, plugin: DashboardPlugin) {
 		super(leaf);
@@ -133,12 +134,28 @@ export class DashboardView extends ItemView {
 		setIcon(editBtn, editing ? "check" : "pencil");
 		editBtn.setAttr("aria-label", editing ? "Done editing" : "Edit layout");
 		editBtn.addEventListener("click", () => {
-			this.plugin.settings.editMode = !this.plugin.settings.editMode;
+			const wasEditing = this.plugin.settings.editMode;
+			if (wasEditing) {
+				this.editSnapshot = null;
+			} else {
+				this.editSnapshot = JSON.parse(JSON.stringify(this.plugin.settings.layout)) as WidgetInstance[];
+			}
+			this.plugin.settings.editMode = !wasEditing;
 			void this.plugin.saveSettings();
 			this.render();
 		});
 
 		if (editing) {
+			const cancelBtn = right.createDiv("dash-btn dash-btn-ghost");
+			setIcon(cancelBtn, "x");
+			cancelBtn.setAttr("aria-label", "Cancel editing");
+			cancelBtn.addEventListener("click", () => {
+				if (this.editSnapshot) this.plugin.settings.layout = this.editSnapshot;
+				this.editSnapshot = null;
+				this.plugin.settings.editMode = false;
+				void this.plugin.saveSettings();
+				this.render();
+			});
 			const addBtn = right.createDiv("dash-btn dash-btn-accent");
 			setIcon(addBtn, "plus");
 			addBtn.setAttr("aria-label", "Add widget");
@@ -167,6 +184,7 @@ export class DashboardView extends ItemView {
 			attr: { "data-uid": inst.uid, "data-type": inst.type },
 		});
 		if (type.noHeader) card.addClass("no-header");
+		if (inst.collapsed) card.addClass("collapsed");
 		this.position(card, inst);
 		this.buildWidgetHeader(card, inst, type);
 		const body = card.createDiv("dash-widget-body widget-" + type.type);
@@ -181,7 +199,7 @@ export class DashboardView extends ItemView {
 		card.style.setProperty("--dash-cx", String(inst.x + 1));
 		card.style.setProperty("--dash-cy", String(inst.y + 1));
 		card.style.setProperty("--dash-cw", String(inst.w));
-		card.style.setProperty("--dash-ch", String(inst.h));
+		card.style.setProperty("--dash-ch", String(inst.collapsed ? 1 : inst.h));
 	}
 
 	private buildWidgetHeader(card: HTMLElement, inst: WidgetInstance, type: WidgetType): void {
@@ -192,6 +210,14 @@ export class DashboardView extends ItemView {
 		const icon = header.createDiv("dash-widget-icon");
 		setIcon(icon, type.icon);
 		header.createDiv("dash-widget-title").setText(inst.title || type.name);
+		const collapse = header.createDiv("dash-widget-collapse");
+		setIcon(collapse, inst.collapsed ? "chevron-right" : "chevron-down");
+		collapse.setAttr("aria-label", inst.collapsed ? "Expand widget" : "Collapse widget");
+		collapse.addEventListener("click", () => {
+			inst.collapsed = !inst.collapsed;
+			void this.plugin.saveSettings();
+			this.render();
+		});
 		const actions = header.createDiv("dash-widget-actions");
 		if (this.plugin.settings.editMode) {
 			const gear = actions.createDiv("dash-btn");

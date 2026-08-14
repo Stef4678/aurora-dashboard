@@ -76,6 +76,31 @@ async function main() {
 	checks.gripPresent = !!content.querySelector(".dash-grip");
 	checks.resizeHandlePresent = !!content.querySelector(".dash-resize");
 
+	const collapseBtn = content.querySelector(".dash-widget:not(.no-header) .dash-widget-collapse");
+	if (collapseBtn) {
+		collapseBtn.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+		await tick(30);
+		checks.collapseApplies = !!content.querySelector(".dash-widget.collapsed");
+		const expandBtn = content.querySelector(".dash-widget.collapsed .dash-widget-collapse");
+		if (expandBtn) {
+			expandBtn.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+			await tick(30);
+		}
+		checks.collapseReopens = !content.querySelector(".dash-widget.collapsed");
+	} else {
+		checks.collapseApplies = false;
+		checks.collapseReopens = false;
+	}
+
+	const cancelBtn = content.querySelector('.dash-control-right .dash-btn[aria-label="Cancel editing"]');
+	if (cancelBtn) {
+		cancelBtn.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+		await tick(30);
+		checks.cancelExitsEditMode = !content.classList.contains("editing") && plugin.settings.editMode === false;
+	} else {
+		checks.cancelExitsEditMode = false;
+	}
+
 	checks.settingsSaved = await plugin.saveSettings().then(() => true).catch(() => false);
 
 	const failed = Object.entries(checks).filter(

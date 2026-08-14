@@ -16,6 +16,8 @@ export interface WidgetInstance {
 	h: number;
 	settings: Record<string, unknown>;
 	title?: string;
+	/** When true the widget is collapsed to a one-row header bar. */
+	collapsed?: boolean;
 }
 
 export interface Settings {

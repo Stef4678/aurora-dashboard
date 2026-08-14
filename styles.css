@@ -281,6 +281,34 @@
 	border-radius: 8px;
 }
 
+.dash-widget-collapse {
+	width: 26px;
+	height: 26px;
+	border-radius: 8px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-faint);
+	cursor: pointer;
+	flex: none;
+	transition: background 0.2s, color 0.2s;
+}
+.dash-widget-collapse:hover {
+	background: color-mix(in srgb, var(--dash-accent) 12%, transparent);
+	color: var(--text-normal);
+}
+.dash-widget-collapse svg {
+	width: 16px;
+	height: 16px;
+}
+
+.dash-widget.collapsed .dash-widget-header {
+	padding-bottom: 11px;
+}
+.dash-widget.collapsed .dash-widget-body {
+	display: none;
+}
+
 .dash-widget.no-header .dash-widget-header {
 	display: none;
 }
