@@ -80,4 +80,4 @@ node smoke/out.js      # run the checks (exit 0 = pass)
 
 ## License
 
-MIT
+[MIT](LICENSE) © 2026 Kerekes Stefan
