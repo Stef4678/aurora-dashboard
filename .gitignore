@@ -147,3 +147,6 @@ smoke/out.js
 *.log
 .DS_Store
 
+
+# Local Claude Code settings
+.claude/
