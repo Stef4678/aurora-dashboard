@@ -874,6 +874,46 @@
 	text-align: center;
 }
 
+/* ---- deadline ---- */
+
+.widget-deadline .dash-widget-body {
+	justify-content: center;
+	gap: 2px;
+	padding: 10px 16px;
+}
+.dash-deadline-days {
+	font-size: clamp(26px, 3.6vw, 40px);
+	font-weight: 800;
+	letter-spacing: -0.02em;
+	font-variant-numeric: tabular-nums;
+	line-height: 1.05;
+	background: linear-gradient(
+		120deg,
+		var(--text-normal),
+		color-mix(in srgb, var(--dash-accent) 65%, var(--text-normal))
+	);
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+.dash-deadline-days.overdue {
+	background: linear-gradient(120deg, var(--text-normal), var(--text-error));
+	-webkit-background-clip: text;
+	background-clip: text;
+}
+.dash-deadline-sub {
+	margin-top: 2px;
+	font-size: 11px;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.09em;
+}
+.dash-deadline-date {
+	margin-top: 6px;
+	font-size: 12px;
+	color: var(--text-faint);
+}
+
 /* ---- modals ---- */
 
 .dash-modal-list {

@@ -101,6 +101,24 @@ async function main() {
 		checks.cancelExitsEditMode = false;
 	}
 
+	plugin.addWidget("deadline");
+	checks.deadlineRenders = !!content.querySelector(".dash-deadline-days");
+	const dlInst = plugin.settings.layout.find((i) => i.type === "deadline");
+	if (dlInst) {
+		dlInst.settings.date = "2099-01-01";
+		plugin.refreshWidget(dlInst.uid);
+		await tick(30);
+		const dlDays = content.querySelector(".dash-deadline-days");
+		checks.deadlineCountdown = dlDays ? /^\d+$/.test(dlDays.textContent.trim()) : false;
+		dlInst.settings.date = "2000-01-01";
+		plugin.refreshWidget(dlInst.uid);
+		await tick(30);
+		checks.deadlineOverdue = !!content.querySelector(".dash-deadline-days.overdue");
+	} else {
+		checks.deadlineCountdown = false;
+		checks.deadlineOverdue = false;
+	}
+
 	checks.settingsSaved = await plugin.saveSettings().then(() => true).catch(() => false);
 
 	const failed = Object.entries(checks).filter(
