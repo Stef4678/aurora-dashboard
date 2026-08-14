@@ -62,5 +62,5 @@ jobs:
             main.js
             manifest.json
             styles.css
-          overwrite: true
+          overwrite_files: true
           fail_on_unmatched_files: true
