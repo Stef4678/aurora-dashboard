@@ -37,7 +37,7 @@ A polished, interactive dashboard and control center for [Obsidian](https://obsi
 The plugin isn't on the community plugin list yet. To use it:
 
 1. Build it (`npm run build`) or download a release.
-2. Copy the `aurora-dashboard` folder into `<your-vault>/.obsidian/plugins/`.
+2. Copy the `cool-dashboard` folder into `<your-vault>/.obsidian/plugins/`.
 3. Restart Obsidian, then enable **Aurora Dashboard** under *Settings → Community plugins*.
 4. Open it from the ribbon icon, or with `Ctrl/Cmd + Shift + D`.
 
