@@ -119,6 +119,21 @@ async function main() {
 		checks.deadlineOverdue = false;
 	}
 
+	plugin.addWidget("random");
+	const randomBtn = content.querySelector(".dash-random-btn");
+	checks.randomRenders = !!randomBtn;
+	const openedLog = [];
+	const origOpenFile = plugin.openFile;
+	plugin.openFile = (f) => {
+		openedLog.push(f);
+	};
+	if (randomBtn) {
+		randomBtn.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+		await tick(30);
+	}
+	plugin.openFile = origOpenFile;
+	checks.randomOpensNote = openedLog.length === 1 && !!openedLog[0] && openedLog[0].extension === "md";
+
 	checks.settingsSaved = await plugin.saveSettings().then(() => true).catch(() => false);
 
 	const failed = Object.entries(checks).filter(

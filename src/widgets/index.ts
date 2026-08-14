@@ -4,3 +4,4 @@ import "./activity";
 import "./content";
 import "./tools";
 import "./deadline";
+import "./random";

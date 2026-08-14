@@ -914,6 +914,46 @@
 	color: var(--text-faint);
 }
 
+/* ---- random note ---- */
+
+.widget-random .dash-widget-body {
+	padding: 10px 12px;
+}
+.dash-random-btn {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	border-radius: 12px;
+	cursor: pointer;
+	user-select: none;
+	color: var(--text-muted);
+	border: 1px dashed var(--background-modifier-border);
+	background: transparent;
+	transition: all 0.18s ease;
+}
+.dash-random-btn:hover {
+	color: var(--text-normal);
+	border-color: color-mix(in srgb, var(--dash-accent) 55%, var(--background-modifier-border));
+	background: color-mix(in srgb, var(--dash-accent) 8%, transparent);
+	box-shadow: 0 3px 10px -3px rgba(0, 0, 0, 0.25);
+}
+.dash-random-icon svg {
+	width: 26px;
+	height: 26px;
+	color: var(--dash-accent);
+}
+.dash-random-label {
+	font-size: 13px;
+	font-weight: 600;
+}
+.dash-random-btn.dash-random-empty {
+	cursor: default;
+	border-style: solid;
+}
+
 /* ---- modals ---- */
 
 .dash-modal-list {
