@@ -4,6 +4,10 @@ A polished, interactive dashboard and control center for [Obsidian](https://obsi
 
 ## Features
 
+<img width="700" alt="Screenshot 2026-08-14 203312" src="https://github.com/user-attachments/assets/617a5e93-efc4-46b2-8db9-5ee6d9289d7f" />
+<img width="700" alt="Screenshot 2026-08-14 203358" src="https://github.com/user-attachments/assets/5279d59e-ddac-4efe-9bae-3837b5203755" />
+<img width="700" alt="Screenshot 2026-08-14 203407" src="https://github.com/user-attachments/assets/dccbb948-a709-4633-bab1-70fa4e2bff92" />
+
 - **Draggable, resizable widgets** on a configurable grid — set columns, row height, and gap to taste
 - **Edit mode** — drag, resize, remove, and re-configure widgets, or reset the layout in one click
 - **Activity tracking** — a GitHub-style heatmap of your note edits, with streaks, weekly, and lifetime totals
