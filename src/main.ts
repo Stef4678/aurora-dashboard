@@ -199,7 +199,7 @@ export default class AuroraDashboardPlugin extends Plugin implements DashboardPl
 	private async appendTo(path: string, text: string): Promise<void> {
 		const existing = this.app.vault.getAbstractFileByPath(path);
 		if (existing instanceof TFile) {
-			const cur = await this.app.vault.read(existing);
+			const cur: string = await this.app.vault.read(existing);
 			const next = cur.trimEnd() + "\n\n" + text;
 			await this.app.vault.modify(existing, next);
 		} else {

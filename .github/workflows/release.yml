@@ -54,10 +54,21 @@ jobs:
           fi
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
+      - name: Build release notes
+        run: |
+          TAG="${{ steps.resolve_tag.outputs.tag }}"
+          if git rev-parse "$TAG^" >/dev/null 2>&1; then
+            git log --pretty=format:'- %s' "$TAG"^.."$TAG" > RELEASE_NOTES.md
+          else
+            echo "Initial release." > RELEASE_NOTES.md
+          fi
+          printf '\n\nAutomated release from the Aurora Dashboard repo.\n' >> RELEASE_NOTES.md
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.resolve_tag.outputs.tag }}
+          body_path: RELEASE_NOTES.md
           files: |
             main.js
             manifest.json

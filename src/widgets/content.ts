@@ -57,7 +57,7 @@ export const tagsType: WidgetType = {
 			setIcon(icon, "hash");
 			row.createDiv("dash-list-name").setText("#" + tag);
 			row.createDiv("dash-list-meta").setText(String(n));
-			row.addEventListener("click", () => ctx.plugin.openSearch("tag:" + tag));
+			row.addEventListener("click", () => void ctx.plugin.openSearch("tag:" + tag));
 		}
 		return {};
 	},
