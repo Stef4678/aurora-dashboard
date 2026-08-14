@@ -1,10 +1,10 @@
 {
-	"id": "cool-dashboard",
-	"name": "Cool Dashboard",
+	"id": "aurora-dashboard",
+	"name": "Aurora Dashboard",
 	"version": "1.0.0",
 	"minAppVersion": "1.0.0",
 	"description": "A polished interactive dashboard and control center with draggable widgets, a calendar, and activity tracking.",
-	"author": "Cool Dashboard",
+	"author": "Aurora Dashboard",
 	"authorUrl": "",
 	"isDesktopOnly": false,
 	"fundingUrl": ""

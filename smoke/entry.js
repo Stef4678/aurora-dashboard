@@ -1,6 +1,6 @@
 require("./stub-obsidian");
 const { App } = require("obsidian");
-const CoolDashboardPlugin = require("../src/main").default;
+const AuroraDashboardPlugin = require("../src/main").default;
 const { DashboardView } = require("../src/view");
 
 const tick = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -15,7 +15,7 @@ async function main() {
 	await app.vault.create("Notes/Alpha.md", "# Alpha\nhello world");
 	await app.vault.create("Notes/Beta.md", "# Beta\nanother note");
 
-	const plugin = new CoolDashboardPlugin(app, { id: "cool-dashboard" });
+	const plugin = new AuroraDashboardPlugin(app, { id: "aurora-dashboard" });
 	await plugin.onload();
 
 	const leaf = app.workspace.getLeaf(false);

@@ -4,7 +4,7 @@ import { getWidgetTypes, widgetType } from "./registry";
 import { gridRows, hasOverlap, nearestFree, resolveOverlaps } from "./layout";
 import { clamp } from "./utils";
 
-export const VIEW_TYPE_DASHBOARD = "cool-dashboard-view";
+export const VIEW_TYPE_DASHBOARD = "aurora-dashboard-view";
 
 export class DashboardView extends ItemView {
 	plugin: DashboardPlugin;

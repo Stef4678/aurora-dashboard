@@ -7,7 +7,7 @@ import { widgetType } from "./registry";
 import { defaultLayout, findFirstFree } from "./layout";
 import { clamp, dateKey as dk, formatDate as fmtDate, uid } from "./utils";
 
-export default class CoolDashboardPlugin extends Plugin implements DashboardPlugin {
+export default class AuroraDashboardPlugin extends Plugin implements DashboardPlugin {
 	settings: Settings;
 	private saveTimer: number | null = null;
 
@@ -239,9 +239,9 @@ export default class CoolDashboardPlugin extends Plugin implements DashboardPlug
 }
 
 class QuickCaptureModal extends Modal {
-	plugin: CoolDashboardPlugin;
+	plugin: AuroraDashboardPlugin;
 
-	constructor(app: App, plugin: CoolDashboardPlugin) {
+	constructor(app: App, plugin: AuroraDashboardPlugin) {
 		super(app);
 		this.plugin = plugin;
 	}
@@ -284,9 +284,9 @@ class QuickCaptureModal extends Modal {
 }
 
 class DashboardSettingTab extends PluginSettingTab {
-	plugin: CoolDashboardPlugin;
+	plugin: AuroraDashboardPlugin;
 
-	constructor(app: App, plugin: CoolDashboardPlugin) {
+	constructor(app: App, plugin: AuroraDashboardPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
