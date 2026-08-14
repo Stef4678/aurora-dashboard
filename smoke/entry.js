@@ -15,7 +15,7 @@ async function main() {
 	await app.vault.create("Notes/Alpha.md", "# Alpha\nhello world");
 	await app.vault.create("Notes/Beta.md", "# Beta\nanother note");
 
-	const plugin = new AuroraDashboardPlugin(app, { id: "cool-dashboard" });
+	const plugin = new AuroraDashboardPlugin(app, { id: "aurora-dashboard" });
 	await plugin.onload();
 
 	const leaf = app.workspace.getLeaf(false);
