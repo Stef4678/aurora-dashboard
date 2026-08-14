@@ -134,7 +134,7 @@ export class DashboardView extends ItemView {
 		editBtn.setAttr("aria-label", editing ? "Done editing" : "Edit layout");
 		editBtn.addEventListener("click", () => {
 			this.plugin.settings.editMode = !this.plugin.settings.editMode;
-			this.plugin.saveSettings();
+			void this.plugin.saveSettings();
 			this.render();
 		});
 
@@ -178,8 +178,10 @@ export class DashboardView extends ItemView {
 	}
 
 	private position(card: HTMLElement, inst: WidgetInstance): void {
-		card.style.gridColumn = `${inst.x + 1} / span ${inst.w}`;
-		card.style.gridRow = `${inst.y + 1} / span ${inst.h}`;
+		card.style.setProperty("--dash-cx", String(inst.x + 1));
+		card.style.setProperty("--dash-cy", String(inst.y + 1));
+		card.style.setProperty("--dash-cw", String(inst.w));
+		card.style.setProperty("--dash-ch", String(inst.h));
 	}
 
 	private buildWidgetHeader(card: HTMLElement, inst: WidgetInstance, type: WidgetType): void {
@@ -201,7 +203,7 @@ export class DashboardView extends ItemView {
 			del.setAttr("aria-label", "Remove widget");
 			del.addEventListener("click", () => {
 				this.plugin.settings.layout = this.plugin.settings.layout.filter((i) => i.uid !== inst.uid);
-				this.plugin.saveSettings();
+				void this.plugin.saveSettings();
 				this.render();
 			});
 		}
@@ -313,7 +315,7 @@ export class DashboardView extends ItemView {
 				document.removeEventListener("pointermove", onMove);
 				document.removeEventListener("pointerup", onUp);
 				card.removeClass("is-dragging");
-				card.style.transform = "";
+				card.style.removeProperty("transform");
 				this.hideDropTarget();
 				const cell = this.cellAt(drag.lastX, drag.lastY);
 				this.placeInstance(inst, cell.x, cell.y);
@@ -355,7 +357,7 @@ export class DashboardView extends ItemView {
 		}
 
 		resolveOverlaps(layout, s.columns);
-		this.plugin.saveSettings();
+		void this.plugin.saveSettings();
 		this.render();
 	}
 
@@ -388,7 +390,7 @@ export class DashboardView extends ItemView {
 				document.removeEventListener("pointermove", onMove);
 				document.removeEventListener("pointerup", onUp);
 				resolveOverlaps(this.plugin.settings.layout, this.plugin.settings.columns);
-				this.plugin.saveSettings();
+				void this.plugin.saveSettings();
 				this.render();
 			};
 
@@ -481,7 +483,7 @@ class WidgetSettingsModal extends Modal {
 	private addSetting(contentEl: HTMLElement, cfg: WidgetSetting): void {
 		const st = new Setting(contentEl).setName(cfg.label);
 		const commit = (): void => {
-			this.plugin.saveSettings();
+			void this.plugin.saveSettings();
 			this.plugin.refreshWidget(this.inst.uid);
 		};
 
@@ -526,7 +528,7 @@ class WidgetSettingsModal extends Modal {
 	}
 
 	private commit(): void {
-		this.plugin.saveSettings();
+		void this.plugin.saveSettings();
 		this.plugin.refreshWidget(this.inst.uid);
 	}
 

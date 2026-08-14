@@ -14,7 +14,7 @@ export interface WidgetInstance {
 	y: number;
 	w: number;
 	h: number;
-	settings: Record<string, any>;
+	settings: Record<string, unknown>;
 	title?: string;
 }
 
@@ -87,7 +87,7 @@ export interface WidgetType {
 	min?: WidgetSize;
 	max?: WidgetSize;
 	defaultSize: WidgetSize;
-	defaultSettings?: Record<string, any>;
+	defaultSettings?: Record<string, unknown>;
 	settings?: WidgetSetting[];
 	/** Widgets that should not show a title bar (e.g. the clock). */
 	noHeader?: boolean;
@@ -103,7 +103,7 @@ export interface DashboardPlugin {
 	noteExistsFor(d: Date): boolean;
 	openFile(f: TFile | null): void;
 	openDay(d: Date): Promise<void>;
-	openSearch(query: string): void;
+	openSearch(query: string): Promise<void>;
 	captureText(text: string): Promise<void>;
 	addWidget(type: string): void;
 	refreshWidget(uid: string): void;

@@ -16,8 +16,8 @@ export const pomodoroType: WidgetType = {
 	],
 	render(ctx) {
 		const s = ctx.inst.settings;
-		const focusMin = Math.max(1, +(s.focus ?? 25) || 25);
-		const breakMin = Math.max(1, +(s.break ?? 5) || 5);
+		const focusMin = Math.max(1, Number(s.focus ?? 25) || 25);
+		const breakMin = Math.max(1, Number(s.break ?? 5) || 5);
 
 		let phase: "focus" | "break" = "focus";
 		let remaining = focusMin * 60;
@@ -26,9 +26,22 @@ export const pomodoroType: WidgetType = {
 		let interval = 0;
 
 		const ringWrap = ctx.body.createDiv("dash-pomo-ring");
-		ringWrap.innerHTML = `<svg viewBox="0 0 120 120" class="dash-pomo-svg"><circle class="dash-ring-track" cx="60" cy="60" r="54"/><circle class="dash-ring-bar" cx="60" cy="60" r="54"/></svg>`;
-		const bar = ringWrap.querySelector(".dash-ring-bar") as SVGCircleElement;
-		const track = ringWrap.querySelector(".dash-ring-track") as SVGCircleElement;
+		const NS = "http://www.w3.org/2000/svg";
+		const svg = document.createElementNS(NS, "svg");
+		svg.setAttribute("viewBox", "0 0 120 120");
+		svg.setAttribute("class", "dash-pomo-svg");
+		const circle = (cls: string): SVGCircleElement => {
+			const c = document.createElementNS(NS, "circle");
+			c.setAttribute("cx", "60");
+			c.setAttribute("cy", "60");
+			c.setAttribute("r", "54");
+			c.setAttribute("class", cls);
+			return c;
+		};
+		const track = circle("dash-ring-track");
+		const bar = circle("dash-ring-bar");
+		svg.append(track, bar);
+		ringWrap.appendChild(svg);
 		const C = 2 * Math.PI * 54;
 		track.setAttribute("stroke-dasharray", String(C));
 		bar.setAttribute("stroke-dasharray", String(C));

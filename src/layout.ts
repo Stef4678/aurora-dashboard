@@ -113,7 +113,7 @@ export interface LayoutItem {
 	y: number;
 	w: number;
 	h: number;
-	settings?: Record<string, any>;
+	settings?: Record<string, unknown>;
 	title?: string;
 }
 

@@ -14,7 +14,7 @@ export const activityType: WidgetType = {
 	],
 	render(ctx) {
 		const activity = ctx.plugin.settings.activity;
-		const weeksShown = Math.max(4, Math.min(26, +(ctx.inst.settings.weeks ?? 14) || 14));
+		const weeksShown = Math.max(4, Math.min(26, Number(ctx.inst.settings.weeks ?? 14) || 14));
 
 		const today = new Date();
 		const start = new Date(today);

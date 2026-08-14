@@ -1,11 +1,11 @@
-import { App, Modal, Notice, Plugin, PluginSettingTab, Setting, TFile, normalizePath } from "obsidian";
+import { App, Modal, Notice, Plugin, PluginSettingTab, TFile, normalizePath, type SettingDefinitionItem } from "obsidian";
 import "./widgets/index";
 import { DashboardView, VIEW_TYPE_DASHBOARD } from "./view";
 import type { DashboardPlugin, Settings, WidgetInstance } from "./types";
 import { DEFAULT_SETTINGS } from "./types";
 import { widgetType } from "./registry";
 import { defaultLayout, findFirstFree } from "./layout";
-import { clamp, dateKey as dk, formatDate as fmtDate, uid } from "./utils";
+import { dateKey as dk, formatDate as fmtDate, uid } from "./utils";
 
 export default class AuroraDashboardPlugin extends Plugin implements DashboardPlugin {
 	settings: Settings;
@@ -21,7 +21,6 @@ export default class AuroraDashboardPlugin extends Plugin implements DashboardPl
 		this.addCommand({
 			id: "open-dashboard",
 			name: "Open dashboard",
-			hotkeys: [{ modifiers: ["Mod", "Shift"], key: "D" }],
 			callback: () => void this.activateView(),
 		});
 		this.addCommand({
@@ -39,10 +38,6 @@ export default class AuroraDashboardPlugin extends Plugin implements DashboardPl
 
 		this.registerEvent(this.app.vault.on("create", (f) => this.onFileActivity(f)));
 		this.registerEvent(this.app.vault.on("modify", (f) => this.onFileActivity(f)));
-	}
-
-	onunload(): void {
-		this.app.workspace.detachLeavesOfType(VIEW_TYPE_DASHBOARD);
 	}
 
 	// ---- data ----
@@ -96,12 +91,12 @@ export default class AuroraDashboardPlugin extends Plugin implements DashboardPl
 		}
 		const leaf = this.app.workspace.getLeaf(false);
 		await leaf.setViewState({ type: VIEW_TYPE_DASHBOARD, active: true });
-		this.app.workspace.revealLeaf(leaf);
+		void this.app.workspace.revealLeaf(leaf);
 	}
 
 	toggleEditMode(): void {
 		this.settings.editMode = !this.settings.editMode;
-		this.saveSettings();
+		void this.saveSettings();
 		this.rerenderDashboard();
 	}
 
@@ -205,7 +200,8 @@ export default class AuroraDashboardPlugin extends Plugin implements DashboardPl
 		const existing = this.app.vault.getAbstractFileByPath(path);
 		if (existing instanceof TFile) {
 			const cur = await this.app.vault.read(existing);
-			await this.app.vault.modify(existing, cur.trimEnd() + "\n\n" + text);
+			const next = cur.trimEnd() + "\n\n" + text;
+			await this.app.vault.modify(existing, next);
 		} else {
 			await this.app.vault.create(path, text);
 		}
@@ -218,7 +214,7 @@ export default class AuroraDashboardPlugin extends Plugin implements DashboardPl
 		if (!t) return;
 		const size = t.defaultSize;
 		const pos = findFirstFree(this.settings.layout, size, this.settings.columns);
-		const defaults = Object.assign({}, t.defaultSettings ?? {});
+		const defaults: Record<string, unknown> = { ...(t.defaultSettings ?? {}) };
 		if (type === "pomodoro") {
 			defaults.focus = this.settings.pomodoroFocus;
 			defaults.break = this.settings.pomodoroBreak;
@@ -233,7 +229,7 @@ export default class AuroraDashboardPlugin extends Plugin implements DashboardPl
 			settings: defaults,
 		};
 		this.settings.layout.push(inst);
-		this.saveSettings();
+		void this.saveSettings();
 		this.rerenderDashboard();
 	}
 }
@@ -291,212 +287,163 @@ class DashboardSettingTab extends PluginSettingTab {
 		this.plugin = plugin;
 	}
 
-	display(): void {
-		const { containerEl } = this;
-		containerEl.empty();
+	override getControlValue(key: string): unknown {
+		if (key === "accent") return this.plugin.settings.accent || "#7c3aed";
+		return (this.plugin.settings as unknown as Record<string, unknown>)[key];
+	}
+
+	override setControlValue(key: string, value: unknown): void | Promise<void> {
+		const ret = super.setControlValue(key, value);
+		if (key === "captureTarget") this.refreshDomState();
+		return ret;
+	}
+
+	getSettingDefinitions(): SettingDefinitionItem[] {
 		const s = this.plugin.settings;
-
-		new Setting(containerEl).setName("Layout").setHeading();
-		new Setting(containerEl)
-			.setName("Columns")
-			.setDesc("Number of grid columns. More columns means finer-grained widget sizing.")
-			.addSlider((sl) =>
-				sl
-					.setLimits(8, 16, 1)
-					.setValue(s.columns)
-					.setDynamicTooltip()
-					.onChange((v) => {
-						s.columns = v;
-						this.plugin.saveSettings();
-						this.plugin.rerenderDashboard();
-					})
-			);
-		new Setting(containerEl)
-			.setName("Row height")
-			.addSlider((sl) =>
-				sl
-					.setLimits(60, 140, 4)
-					.setValue(s.rowHeight)
-					.setDynamicTooltip()
-					.onChange((v) => {
-						s.rowHeight = v;
-						this.plugin.saveSettings();
-						this.plugin.rerenderDashboard();
-					})
-			);
-		new Setting(containerEl)
-			.setName("Gap")
-			.setDesc("Spacing between widgets.")
-			.addSlider((sl) =>
-				sl
-					.setLimits(8, 28, 2)
-					.setValue(s.gap)
-					.setDynamicTooltip()
-					.onChange((v) => {
-						s.gap = v;
-						this.plugin.saveSettings();
-						this.plugin.rerenderDashboard();
-					})
-			);
-		new Setting(containerEl)
-			.setName("Edit mode")
-			.setDesc("Show widget handles for dragging, resizing and removing.")
-			.addToggle((tg) =>
-				tg.setValue(s.editMode).onChange((v) => {
-					s.editMode = v;
-					this.plugin.saveSettings();
-					this.plugin.rerenderDashboard();
-				})
-			)
-			.addButton((b) =>
-				b.setButtonText("Reset layout").onClick(() => {
-					s.layout = defaultLayout();
-					this.plugin.saveSettings();
-					this.plugin.rerenderDashboard();
-				})
-			);
-
-		new Setting(containerEl).setName("Appearance").setHeading();
-		new Setting(containerEl)
-			.setName("Accent color")
-			.setDesc("Used for highlights, charts and progress.")
-			.addColorPicker((cp) =>
-				cp
-					.setValue(s.accent || "#7c3aed")
-					.onChange((v) => {
-						s.accent = v;
-						this.plugin.saveSettings();
-						this.plugin.rerenderDashboard();
-					})
-			)
-			.addExtraButton((btn) =>
-				btn.setIcon("rotate-ccw").setTooltip("Reset to theme accent").onClick(() => {
-					s.accent = "";
-					this.plugin.saveSettings();
-					this.plugin.rerenderDashboard();
-					this.display();
-				})
-			);
-		const swatches = new Setting(containerEl).setName("Accent presets").setDesc("One-click options.");
-		const wrap = swatches.controlEl.createDiv("dash-accent-presets");
-		for (const c of ["#7c3aed", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#14b8a6", "#6366f1"]) {
-			const sw = wrap.createDiv("dash-accent-swatch");
-			sw.style.background = c;
-			sw.addEventListener("click", () => {
-				s.accent = c;
-				this.plugin.saveSettings();
-				this.plugin.rerenderDashboard();
-			});
-		}
-
-		new Setting(containerEl).setName("Activity").setHeading();
-		new Setting(containerEl)
-			.setName("Track activity")
-			.setDesc("Record note edits to power the heatmap, streaks and stats.")
-			.addToggle((tg) =>
-				tg.setValue(s.trackActivity).onChange((v) => {
-					s.trackActivity = v;
-					this.plugin.saveSettings();
-				})
-			)
-			.addButton((b) =>
-				b.setButtonText("Clear data").setWarning().onClick(() => {
-					s.activity = {};
-					this.plugin.saveSettings();
-					this.plugin.rerenderDashboard();
-				})
-			);
-
-		new Setting(containerEl).setName("Daily notes").setHeading();
-		new Setting(containerEl)
-			.setName("Daily note folder")
-			.setDesc("Optional folder for daily notes (blank = vault root).")
-			.addText((tb) =>
-				tb
-					.setPlaceholder("e.g. Daily")
-					.setValue(s.dailyNoteFolder)
-					.onChange((v) => {
-						s.dailyNoteFolder = v;
-						this.plugin.saveSettings();
-					})
-			);
-		new Setting(containerEl)
-			.setName("Daily note format")
-			.setDesc("Tokens: YYYY, YY, MMM, MM, DD, ddd.")
-			.addText((tb) =>
-				tb
-					.setPlaceholder("YYYY-MM-DD")
-					.setValue(s.dailyNoteFormat)
-					.onChange((v) => {
-						s.dailyNoteFormat = v;
-						this.plugin.saveSettings();
-					})
-			);
-
-		new Setting(containerEl).setName("Capture").setHeading();
-		new Setting(containerEl)
-			.setName("Capture target")
-			.addDropdown((dd) =>
-				dd
-					.addOption("inbox", "Inbox file")
-					.addOption("daily", "Today's daily note")
-					.setValue(s.captureTarget)
-					.onChange((v) => {
-						s.captureTarget = v as Settings["captureTarget"];
-						this.plugin.saveSettings();
-						this.display();
-					})
-			);
-		if (s.captureTarget === "inbox") {
-			new Setting(containerEl)
-				.setName("Capture folder")
-				.setDesc("Optional folder for the inbox file.")
-				.addText((tb) =>
-					tb
-						.setPlaceholder("e.g. Inbox")
-						.setValue(s.captureFolder)
-						.onChange((v) => {
-							s.captureFolder = v;
-							this.plugin.saveSettings();
-						})
-				);
-			new Setting(containerEl)
-				.setName("Inbox file")
-				.addText((tb) =>
-					tb
-						.setPlaceholder("Inbox.md")
-						.setValue(s.inboxFile)
-						.onChange((v) => {
-							s.inboxFile = v;
-							this.plugin.saveSettings();
-						})
-				);
-		}
-
-		new Setting(containerEl).setName("Pomodoro").setHeading();
-		new Setting(containerEl)
-			.setName("Focus length")
-			.setDesc("Default work interval (min) for new Pomodoro widgets. Existing widgets keep their own value.")
-			.addText((tb) =>
-				tb
-					.setPlaceholder("25")
-					.setValue(String(s.pomodoroFocus))
-					.onChange((v) => {
-						s.pomodoroFocus = clamp(parseInt(v, 10) || 25, 1, 120);
-						this.plugin.saveSettings();
-					})
-			);
-		new Setting(containerEl)
-			.setName("Break length")
-			.setDesc("Default break (min) for new Pomodoro widgets. Existing widgets keep their own value.")
-			.addText((tb) =>
-				tb
-					.setPlaceholder("5")
-					.setValue(String(s.pomodoroBreak))
-					.onChange((v) => {
-						s.pomodoroBreak = clamp(parseInt(v, 10) || 5, 1, 60);
-						this.plugin.saveSettings();
-					})
-			);
+		return [
+			{
+				type: "group",
+				heading: "Layout",
+				items: [
+					{
+						name: "Columns",
+						desc: "Number of grid columns. More columns means finer-grained widget sizing.",
+						control: { type: "slider", key: "columns", min: 8, max: 16, step: 1 },
+					},
+					{
+						name: "Row height",
+						control: { type: "slider", key: "rowHeight", min: 60, max: 140, step: 4 },
+					},
+					{
+						name: "Gap",
+						desc: "Spacing between widgets.",
+						control: { type: "slider", key: "gap", min: 8, max: 28, step: 2 },
+					},
+					{
+						name: "Edit mode",
+						desc: "Show widget handles for dragging, resizing and removing.",
+						control: { type: "toggle", key: "editMode" },
+					},
+					{
+						name: "Reset layout",
+						action: () => {
+							s.layout = defaultLayout();
+							void this.plugin.saveSettings();
+							this.plugin.rerenderDashboard();
+						},
+					},
+				],
+			},
+			{
+				type: "group",
+				heading: "Appearance",
+				items: [
+					{
+						name: "Accent color",
+						desc: "Used for highlights, charts and progress.",
+						control: { type: "color", key: "accent" },
+					},
+					{
+						name: "Reset to theme accent",
+						action: () => {
+							s.accent = "";
+							void this.plugin.saveSettings();
+							this.plugin.rerenderDashboard();
+							this.update();
+						},
+					},
+					{
+						name: "Accent presets",
+						desc: "One-click options.",
+						render: (setting) => {
+							const wrap = setting.controlEl.createDiv("dash-accent-presets");
+							for (const c of ["#7c3aed", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444", "#ec4899", "#14b8a6", "#6366f1"]) {
+								const sw = wrap.createDiv("dash-accent-swatch");
+								sw.style.setProperty("--dash-accent", c);
+								sw.setAttr("aria-label", c);
+								sw.addEventListener("click", () => {
+									s.accent = c;
+									void this.plugin.saveSettings();
+									this.plugin.rerenderDashboard();
+									this.update();
+								});
+							}
+						},
+					},
+				],
+			},
+			{
+				type: "group",
+				heading: "Activity",
+				items: [
+					{
+						name: "Track activity",
+						desc: "Record note edits to power the heatmap, streaks and stats.",
+						control: { type: "toggle", key: "trackActivity" },
+					},
+					{
+						name: "Clear data",
+						action: () => {
+							s.activity = {};
+							void this.plugin.saveSettings();
+							this.plugin.rerenderDashboard();
+						},
+					},
+				],
+			},
+			{
+				type: "group",
+				heading: "Daily notes",
+				items: [
+					{
+						name: "Daily note folder",
+						desc: "Optional folder for daily notes (blank = vault root).",
+						control: { type: "text", key: "dailyNoteFolder", placeholder: "e.g. Daily" },
+					},
+					{
+						name: "Daily note format",
+						desc: "Tokens: YYYY, YY, MMM, MM, DD, ddd.",
+						control: { type: "text", key: "dailyNoteFormat", placeholder: "YYYY-MM-DD" },
+					},
+				],
+			},
+			{
+				type: "group",
+				heading: "Capture",
+				items: [
+					{
+						name: "Capture target",
+						control: { type: "dropdown", key: "captureTarget", options: { inbox: "Inbox file", daily: "Today's daily note" } },
+					},
+					{
+						name: "Capture folder",
+						desc: "Optional folder for the inbox file.",
+						control: { type: "text", key: "captureFolder", placeholder: "e.g. Inbox" },
+						visible: () => s.captureTarget === "inbox",
+					},
+					{
+						name: "Inbox file",
+						control: { type: "text", key: "inboxFile", placeholder: "Inbox.md" },
+						visible: () => s.captureTarget === "inbox",
+					},
+				],
+			},
+			{
+				type: "group",
+				heading: "Pomodoro",
+				items: [
+					{
+						name: "Focus length",
+						desc: "Default work interval (min) for new Pomodoro widgets. Existing widgets keep their own value.",
+						control: { type: "number", key: "pomodoroFocus", min: 1, max: 120, placeholder: "25" },
+					},
+					{
+						name: "Break length",
+						desc: "Default break (min) for new Pomodoro widgets. Existing widgets keep their own value.",
+						control: { type: "number", key: "pomodoroBreak", min: 1, max: 60, placeholder: "5" },
+					},
+				],
+			},
+		];
 	}
 }

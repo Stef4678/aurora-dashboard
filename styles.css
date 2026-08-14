@@ -2,12 +2,12 @@
    Aurora Dashboard — control center
    ============================================================ */
 
-.dash-view {
+.view-content.dash-view {
 	--dash-accent: var(--interactive-accent, #7c3aed);
 	--dash-radius: 16px;
 	height: 100%;
 	overflow: auto;
-	padding: 0 !important;
+	padding: 0;
 	background:
 		radial-gradient(1200px 520px at 8% -10%, color-mix(in srgb, var(--dash-accent) 9%, transparent), transparent 60%),
 		radial-gradient(900px 420px at 108% 4%, color-mix(in srgb, var(--dash-accent) 7%, transparent), transparent 55%),
@@ -180,6 +180,8 @@
 	position: relative;
 	display: flex;
 	flex-direction: column;
+	grid-column: var(--dash-cx, 1) / span var(--dash-cw, 1);
+	grid-row: var(--dash-cy, 1) / span var(--dash-ch, 1);
 	min-width: 0;
 	min-height: 0;
 	border-radius: var(--dash-radius);
@@ -918,6 +920,7 @@
 	width: 26px;
 	height: 26px;
 	border-radius: 50%;
+	background: var(--dash-accent);
 	cursor: pointer;
 	border: 2px solid var(--background-primary);
 	box-shadow: 0 0 0 1px var(--background-modifier-border);
@@ -943,7 +946,7 @@
 		grid-template-columns: 1fr;
 	}
 	.dash-widget {
-		grid-column: 1 / -1 !important;
+		grid-column: 1 / -1;
 	}
 	.dash-brand-sub {
 		display: none;

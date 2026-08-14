@@ -11,7 +11,7 @@ export const recentType: WidgetType = {
 	defaultSize: { w: 5, h: 3 },
 	settings: [{ key: "count", label: "Number of notes", type: "number", min: 3, max: 20 }],
 	render(ctx) {
-		const count = Math.max(3, Math.min(20, +(ctx.inst.settings.count ?? 8) || 8));
+		const count = Math.max(3, Math.min(20, Number(ctx.inst.settings.count ?? 8) || 8));
 		const files = ctx.plugin.app.vault
 			.getMarkdownFiles()
 			.sort((a, b) => b.stat.mtime - a.stat.mtime)
@@ -38,7 +38,7 @@ export const tagsType: WidgetType = {
 	defaultSize: { w: 3, h: 3 },
 	settings: [{ key: "count", label: "Number of tags", type: "number", min: 3, max: 20 }],
 	render(ctx) {
-		const count = Math.max(3, Math.min(20, +(ctx.inst.settings.count ?? 10) || 10));
+		const count = Math.max(3, Math.min(20, Number(ctx.inst.settings.count ?? 10) || 10));
 		const counts = new Map<string, number>();
 		const files = ctx.plugin.app.vault.getMarkdownFiles().slice(0, 1500);
 		for (const f of files) {
@@ -220,7 +220,7 @@ export const searchType: WidgetType = {
 		input.addEventListener("keydown", (e) => {
 			if (e.key === "Enter") {
 				const q = input.value.trim();
-				if (q) ctx.plugin.openSearch(q);
+				if (q) void ctx.plugin.openSearch(q);
 			}
 		});
 		return {};
