@@ -21,6 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -57,7 +59,10 @@ jobs:
       - name: Build release notes
         run: |
           TAG="${{ steps.resolve_tag.outputs.tag }}"
-          if git rev-parse "$TAG^" >/dev/null 2>&1; then
+          PREV=$(git describe --tags --abbrev=0 "$TAG"^ 2>/dev/null || echo "")
+          if [ -n "$PREV" ]; then
+            git log --pretty=format:'- %s' "$PREV".."$TAG" > RELEASE_NOTES.md
+          elif git rev-parse "$TAG^" >/dev/null 2>&1; then
             git log --pretty=format:'- %s' "$TAG"^.."$TAG" > RELEASE_NOTES.md
           else
             echo "Initial release." > RELEASE_NOTES.md
