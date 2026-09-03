@@ -271,7 +271,7 @@ export class DashboardView extends ItemView {
 	}
 
 	refreshActivityWidgets(): void {
-		for (const t of ["activity", "stats", "tasks", "calendar", "recent"]) this.refreshAllOfType(t);
+		for (const t of ["activity", "stats", "tasks", "calendar", "recent", "vaulttasks"]) this.refreshAllOfType(t);
 	}
 
 	private refreshAllOfType(type: string): void {
@@ -429,6 +429,11 @@ export class DashboardView extends ItemView {
 
 	private openWidgetSettings(inst: WidgetInstance): void {
 		const type = widgetType(inst.type);
+		if (!type) return;
+		if (type.openSettings) {
+			type.openSettings(this.plugin, inst);
+			return;
+		}
 		if (!type?.settings?.length && !inst.title) {
 			new Notice("No settings for this widget.");
 			return;

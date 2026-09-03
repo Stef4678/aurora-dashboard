@@ -144,5 +144,8 @@ export function defaultLayout(): WidgetInstance[] {
 		{ type: "quote", x: 7, y: 7, w: 5, h: 2 },
 		{ type: "deadline", x: 0, y: 9, w: 3, h: 2 },
 		{ type: "random", x: 3, y: 9, w: 3, h: 2 },
+		{ type: "vaulttasks", x: 6, y: 9, w: 6, h: 4 },
+		{ type: "search", x: 0, y: 11, w: 3, h: 2 },
+		{ type: "quickactions", x: 3, y: 11, w: 3, h: 2 },
 	]);
 }

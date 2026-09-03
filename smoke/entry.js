@@ -2,6 +2,7 @@ require("./stub-obsidian");
 const { App } = require("obsidian");
 const AuroraDashboardPlugin = require("../src/main").default;
 const { DashboardView } = require("../src/view");
+const { getWidgetTypes } = require("../src/registry");
 
 const tick = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -29,6 +30,9 @@ async function main() {
 
 	const checks = {};
 	checks.widgetCount = content.querySelectorAll(".dash-widget").length;
+	const layoutTypes = plugin.settings.layout.map((i) => i.type).sort();
+	const regTypes = getWidgetTypes().map((t) => t.type).sort();
+	checks.allWidgetTypesInDefaultLayout = layoutTypes.join(",") === regTypes.join(",");
 	checks.hasControlCenter = content.textContent.includes("Control Center");
 	checks.hasClock = !!content.querySelector(".dash-clock-time");
 	checks.hasCalendar = !!content.querySelector(".dash-cal-grid");
@@ -133,6 +137,29 @@ async function main() {
 	}
 	plugin.openFile = origOpenFile;
 	checks.randomOpensNote = openedLog.length === 1 && !!openedLog[0] && openedLog[0].extension === "md";
+
+	// vault-wide tasks widget — reset the daily note so it has an open task to find
+	const vtf = app.vault.getAbstractFileByPath(plugin.dailyNotePath(new Date()));
+	if (vtf) await app.vault.modify(vtf, "- [ ] Plan the weekend\n- [x] Already done");
+	plugin.addWidget("vaulttasks");
+	await tick(60);
+	const vtWidget = content.querySelector(".widget-vaulttasks");
+	checks.vaultTasksWidget = !!vtWidget;
+	checks.vaultTasksRows = vtWidget ? vtWidget.querySelectorAll(".dash-list-row").length > 0 : false;
+	const vtCheck = vtWidget ? vtWidget.querySelector(".dash-list-row .dash-check") : null;
+	checks.vaultTasksCheckbox = !!vtCheck;
+	if (vtCheck) {
+		vtCheck.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+		await tick(30);
+		checks.vaultTaskToggled = vtf ? (await app.vault.read(vtf)).includes("- [x] Plan the weekend") : false;
+	}
+
+	// quick actions widget
+	plugin.addWidget("quickactions");
+	await tick(30);
+	const qaWidget = content.querySelector(".widget-quickactions");
+	checks.quickActionsWidget = !!qaWidget;
+	checks.quickActionsButtons = qaWidget ? qaWidget.querySelectorAll(".dash-quick-btn").length > 0 : false;
 
 	checks.settingsSaved = await plugin.saveSettings().then(() => true).catch(() => false);
 

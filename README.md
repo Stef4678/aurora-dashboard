@@ -27,6 +27,7 @@ A polished, interactive dashboard and control center for [Obsidian](https://obsi
 | **Recent** | Notes you touched recently, click to open |
 | **Tags** | Your most-used tags, click to run a vault search |
 | **Today** | Checkboxes from today's daily note — check them off or add new tasks inline |
+| **All tasks** | Every open task across your vault, grouped by note; click a task to jump to it, tick the box to complete it inline |
 | **Quick capture** | A textarea that appends to your inbox file or today's note |
 | **Search** | Global vault search right from the dashboard |
 | **Pomodoro** | A focus timer with an animated ring; configurable focus/break lengths |

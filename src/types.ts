@@ -93,6 +93,8 @@ export interface WidgetType {
 	settings?: WidgetSetting[];
 	/** Widgets that should not show a title bar (e.g. the clock). */
 	noHeader?: boolean;
+	/** Optional custom settings editor for widgets whose config isn't a flat list of scalars. */
+	openSettings?: (plugin: DashboardPlugin, inst: WidgetInstance) => void;
 	render: (ctx: WidgetCtx) => WidgetHandle;
 }
 

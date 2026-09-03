@@ -5,3 +5,5 @@ import "./content";
 import "./tools";
 import "./deadline";
 import "./random";
+import "./vaulttasks";
+import "./quickactions";

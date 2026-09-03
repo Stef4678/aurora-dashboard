@@ -731,6 +731,54 @@
 	flex: none;
 }
 
+/* ---- vault-wide tasks ---- */
+
+.widget-vaulttasks .dash-widget-body {
+	padding: 2px 10px 12px;
+}
+.widget-vaulttasks .dash-list-row {
+	border-radius: 8px;
+	padding: 6px 8px;
+}
+.dash-group-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 8px 3px;
+	margin-top: 6px;
+	border-radius: 8px;
+	cursor: pointer;
+	transition: background 0.15s;
+}
+.dash-group-header:hover {
+	background: var(--background-modifier-hover);
+}
+.dash-group-header .dash-list-icon {
+	width: 15px;
+	height: 15px;
+}
+.dash-group-header .dash-list-icon svg {
+	width: 13px;
+	height: 13px;
+}
+.dash-group-name {
+	flex: 1;
+	font-size: 12px;
+	font-weight: 650;
+	color: var(--text-muted);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.dash-group-count {
+	font-size: 10px;
+	color: var(--text-faint);
+	background: var(--background-modifier-hover);
+	padding: 2px 7px;
+	border-radius: 999px;
+	flex: none;
+}
+
 /* ---- inputs ---- */
 
 .dash-task-input,
@@ -796,6 +844,101 @@
 
 .widget-search .dash-widget-body {
 	justify-content: center;
+}
+.widget-search .dash-search-input {
+	flex: 0 0 auto;
+	width: 100%;
+}
+
+/* ---- quick actions ---- */
+
+.widget-quickactions .dash-widget-body {
+	padding: 4px 10px 12px;
+}
+.dash-quick-grid {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 6px;
+	flex: 1;
+}
+.dash-quick-btn {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 5px;
+	min-height: 0;
+	border-radius: 12px;
+	cursor: pointer;
+	user-select: none;
+	color: var(--text-muted);
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-modifier-hover);
+	transition: all 0.18s ease;
+	text-align: center;
+	padding: 8px 4px;
+}
+.dash-quick-btn:hover {
+	color: var(--text-normal);
+	border-color: color-mix(in srgb, var(--dash-accent) 55%, var(--background-modifier-border));
+	background: color-mix(in srgb, var(--dash-accent) 10%, transparent);
+	box-shadow: 0 3px 10px -3px rgba(0, 0, 0, 0.25);
+}
+.dash-quick-icon svg {
+	width: 16px;
+	height: 16px;
+	color: var(--dash-accent);
+}
+.dash-quick-label {
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 1.2;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 100%;
+}
+
+/* quick-actions editor modal */
+
+.dash-qa-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+.dash-qa-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+.dash-qa-input {
+	flex: 1;
+	min-width: 0;
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 10px;
+	padding: 8px 10px;
+	font-size: 13px;
+	color: var(--text-normal);
+	outline: none;
+}
+.dash-qa-input:focus,
+.dash-qa-select:focus {
+	border-color: var(--dash-accent);
+	box-shadow: 0 0 0 3px color-mix(in srgb, var(--dash-accent) 18%, transparent);
+}
+.dash-qa-select {
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 10px;
+	padding: 8px 8px;
+	font-size: 13px;
+	color: var(--text-normal);
+	outline: none;
+	max-width: 118px;
+}
+.dash-qa-list .dash-empty {
+	padding: 10px 0;
 }
 
 /* ---- pomodoro ---- */
