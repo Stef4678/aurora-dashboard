@@ -147,5 +147,11 @@ export function defaultLayout(): WidgetInstance[] {
 		{ type: "vaulttasks", x: 6, y: 9, w: 6, h: 4 },
 		{ type: "search", x: 0, y: 11, w: 3, h: 2 },
 		{ type: "quickactions", x: 3, y: 11, w: 3, h: 2 },
+		{ type: "popular", x: 0, y: 13, w: 4, h: 3 },
+		{ type: "orphans", x: 4, y: 13, w: 4, h: 3 },
+		{ type: "backlinks", x: 8, y: 13, w: 4, h: 3 },
+		{ type: "pinned", x: 0, y: 16, w: 4, h: 3 },
+		{ type: "progress", x: 4, y: 16, w: 4, h: 2 },
+		{ type: "streak", x: 8, y: 16, w: 4, h: 2 },
 	]);
 }

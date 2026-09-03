@@ -271,7 +271,7 @@ export class DashboardView extends ItemView {
 	}
 
 	refreshActivityWidgets(): void {
-		for (const t of ["activity", "stats", "tasks", "calendar", "recent", "vaulttasks"]) this.refreshAllOfType(t);
+		for (const t of ["activity", "stats", "tasks", "calendar", "recent", "vaulttasks", "popular", "orphans", "backlinks"]) this.refreshAllOfType(t);
 	}
 
 	private refreshAllOfType(type: string): void {

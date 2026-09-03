@@ -941,6 +941,106 @@
 	padding: 10px 0;
 }
 
+/* ---- progress rings ---- */
+
+.widget-progress .dash-widget-body {
+	align-items: center;
+	justify-content: center;
+}
+.dash-prog-row {
+	display: flex;
+	justify-content: space-around;
+	align-items: center;
+	flex: 1;
+	min-height: 0;
+	width: 100%;
+	padding-top: 6px;
+}
+.dash-prog-ring {
+	position: relative;
+	width: 62px;
+	height: 62px;
+	flex: none;
+}
+.dash-prog-svg {
+	width: 100%;
+	height: 100%;
+	transform: rotate(-90deg);
+}
+.dash-prog-svg .dash-ring-track {
+	stroke-width: 8;
+}
+.dash-prog-svg .dash-ring-bar {
+	stroke-width: 8;
+}
+.dash-prog-val {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 13px;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+}
+.dash-prog-label {
+	position: absolute;
+	left: 50%;
+	top: 100%;
+	transform: translateX(-50%);
+	margin-top: 3px;
+	font-size: 9px;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--text-faint);
+	white-space: nowrap;
+}
+
+/* ---- daily streak ---- */
+
+.widget-streak .dash-widget-body {
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	gap: 2px;
+}
+.dash-streak-num {
+	font-size: 38px;
+	font-weight: 800;
+	letter-spacing: -0.02em;
+	line-height: 1.05;
+	font-variant-numeric: tabular-nums;
+	background: linear-gradient(
+		120deg,
+		var(--text-normal),
+		color-mix(in srgb, var(--dash-accent) 60%, var(--text-normal))
+	);
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+.dash-streak-sub {
+	font-size: 10px;
+	text-transform: uppercase;
+	letter-spacing: 0.09em;
+	color: var(--text-muted);
+}
+.widget-streak .dash-hm-stats {
+	justify-content: center;
+	margin-top: 8px;
+}
+
+/* pinned modal names */
+
+.dash-qa-name {
+	flex: 1;
+	min-width: 0;
+	font-size: 12px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 /* ---- pomodoro ---- */
 
 .widget-pomodoro .dash-widget-body {

@@ -161,6 +161,15 @@ async function main() {
 	checks.quickActionsWidget = !!qaWidget;
 	checks.quickActionsButtons = qaWidget ? qaWidget.querySelectorAll(".dash-quick-btn").length > 0 : false;
 
+	// link/streak widgets (part of the default layout)
+	checks.hasPopular = !!content.querySelector(".widget-popular");
+	checks.hasOrphans = !!content.querySelector(".widget-orphans");
+	checks.hasBacklinks = !!content.querySelector(".widget-backlinks");
+	checks.hasPinned = !!content.querySelector(".widget-pinned");
+	checks.hasProgress = !!content.querySelector(".dash-prog-ring");
+	checks.hasStreak = !!content.querySelector(".dash-streak-num");
+	checks.newWidgetErrors = errors;
+
 	checks.settingsSaved = await plugin.saveSettings().then(() => true).catch(() => false);
 
 	const failed = Object.entries(checks).filter(

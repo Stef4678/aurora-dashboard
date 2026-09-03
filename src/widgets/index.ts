@@ -7,3 +7,8 @@ import "./deadline";
 import "./random";
 import "./vaulttasks";
 import "./quickactions";
+import "./pinned";
+import "./links";
+import "./backlinks";
+import "./progress";
+import "./streak";
