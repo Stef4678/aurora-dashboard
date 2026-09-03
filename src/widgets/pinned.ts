@@ -4,7 +4,7 @@ import { registerWidgetType } from "../registry";
 
 function pinnedPaths(inst: WidgetInstance): string[] {
 	const v = inst.settings.pins;
-	return Array.isArray(v) ? (v.filter((p): p is string => typeof p === "string") as string[]) : [];
+	return Array.isArray(v) ? v.filter((p): p is string => typeof p === "string") : [];
 }
 
 export const pinnedType: WidgetType = {

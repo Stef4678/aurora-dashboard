@@ -1,4 +1,4 @@
-import { setIcon, TFile, type App, type MetadataCache } from "obsidian";
+import { setIcon, TFile, type MetadataCache } from "obsidian";
 import type { WidgetType } from "../types";
 import { registerWidgetType } from "../registry";
 
