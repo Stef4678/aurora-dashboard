@@ -200,7 +200,7 @@ export default class AuroraDashboardPlugin extends Plugin implements DashboardPl
 		const existing = this.app.vault.getAbstractFileByPath(path);
 		if (existing instanceof TFile) {
 			const cur: string = await this.app.vault.read(existing);
-			const next = cur.trimEnd() + "\n\n" + text;
+			const next = cur.replace(/\s+$/, "") + "\n\n" + text;
 			await this.app.vault.modify(existing, next);
 		} else {
 			await this.app.vault.create(path, text);

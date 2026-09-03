@@ -51,6 +51,30 @@ function uid(): string {
 	return Math.random().toString(36).slice(2, 9) + Date.now().toString(36);
 }
 
+function isActionKind(k: unknown): k is ActionKind {
+	return (
+		k === "command" ||
+		k === "note" ||
+		k === "search" ||
+		k === "today" ||
+		k === "capture" ||
+		k === "template"
+	);
+}
+
+/** Rebuilds an action from (possibly unknown) data without any JSON round-trip. */
+function sanitizeAction(value: unknown): QuickAction {
+	if (!value || typeof value !== "object") return defaultAction("command");
+	const o = value as Record<string, unknown>;
+	const kind = isActionKind(o.kind) ? o.kind : "command";
+	return {
+		id: typeof o.id === "string" && o.id !== "" ? o.id : uid(),
+		label: typeof o.label === "string" && o.label !== "" ? o.label : KIND_LABEL[kind],
+		kind,
+		target: typeof o.target === "string" ? o.target : "",
+	};
+}
+
 async function dispatch(plugin: DashboardPlugin, a: QuickAction): Promise<void> {
 	const app = plugin.app;
 	switch (a.kind) {
@@ -122,7 +146,9 @@ const actionType: WidgetType = {
 		new QuickActionsModal(plugin.app, plugin, inst).open();
 	},
 	render(ctx) {
-		const actions = (Array.isArray(ctx.inst.settings.actions) ? ctx.inst.settings.actions : defaultActions()) as QuickAction[];
+		const actions = (Array.isArray(ctx.inst.settings.actions) ? ctx.inst.settings.actions : defaultActions()).map(
+			sanitizeAction
+		);
 		const grid = ctx.body.createDiv("dash-quick-grid");
 		if (!actions.length) {
 			grid.createDiv("dash-empty").setText("No quick actions — edit in settings");
@@ -148,9 +174,8 @@ class QuickActionsModal extends Modal {
 		super(app);
 		this.plugin = plugin;
 		this.inst = inst;
-		this.actions = (Array.isArray(inst.settings.actions) ? inst.settings.actions : defaultActions()).map((a) =>
-			JSON.parse(JSON.stringify(a))
-		) as QuickAction[];
+		const raw: unknown[] = Array.isArray(inst.settings.actions) ? inst.settings.actions : defaultActions();
+		this.actions = raw.map(sanitizeAction);
 	}
 
 	onOpen(): void {
@@ -233,17 +258,12 @@ class QuickActionsModal extends Modal {
 		const id = "dash-qa-commands";
 		let dl = document.getElementById(id) as HTMLDataListElement | null;
 		if (!dl) {
-			dl = document.createElement("datalist");
-			dl.id = id;
-			document.body.appendChild(dl);
+			dl = document.body.createEl("datalist", { attr: { id } });
 		}
 		if (!dl.childElementCount) {
 			const cmds = commands?.listCommands?.() ?? [];
 			for (const c of cmds) {
-				const opt = document.createElement("option");
-				opt.value = c.id;
-				opt.label = c.name;
-				dl.appendChild(opt);
+				dl.createEl("option", { value: c.id, text: c.name });
 			}
 		}
 		target.setAttribute("list", id);
@@ -254,7 +274,7 @@ class QuickActionsModal extends Modal {
 	}
 
 	private async commit(): Promise<void> {
-		this.inst.settings.actions = this.actions.map((a) => JSON.parse(JSON.stringify(a)));
+		this.inst.settings.actions = this.actions.map(sanitizeAction);
 		await this.plugin.saveSettings();
 		this.plugin.refreshWidget(this.inst.uid);
 		this.close();
