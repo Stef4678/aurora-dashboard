@@ -1,6 +1,6 @@
 # Aurora Dashboard
 
-A polished, interactive dashboard and control center for [Obsidian](https://obsidian.md) — a grid of draggable, resizable widgets covering your clock, calendar, activity, tasks, capture, and more.
+A polished, interactive dashboard and control center for [Obsidian](https://obsidian.md) — a grid of draggable, resizable widgets covering your clock, calendar, activity, tasks, capture, links, streaks, and more.
 
 ## Features
 
@@ -9,10 +9,14 @@ A polished, interactive dashboard and control center for [Obsidian](https://obsi
 <img width="700" alt="Screenshot 2026-08-14 203407" src="https://github.com/user-attachments/assets/dccbb948-a709-4633-bab1-70fa4e2bff92" />
 
 - **Draggable, resizable widgets** on a configurable grid — set columns, row height, and gap to taste
-- **Edit mode** — drag, resize, remove, and re-configure widgets, or reset the layout in one click
+- **Edit mode** — drag, resize, remove, and re-configure widgets, collapse them to a header bar, or reset the layout in one click
 - **Activity tracking** — a GitHub-style heatmap of your note edits, with streaks, weekly, and lifetime totals
 - **Daily note integration** — the calendar and Today widgets open, create, and manage your daily notes
+- **Vault-wide tasks** — every open task from every note, grouped by source; click to jump, tick to complete
 - **Quick capture** — send a thought to your inbox file or today's note in one keystroke
+- **Quick actions launcher** — configurable buttons that run Obsidian commands, open notes, run searches, or insert notes from templates
+- **Link insights** — see which notes are most-linked, which are orphans, and what links to your current note
+- **Habit & progress nudges** — daily-note streaks and animated day/month/year progress rings
 - **Custom accent color** — theme the highlights, charts, and progress rings (with presets)
 - **Fully offline** — all data lives in your vault, no external services
 
@@ -32,6 +36,15 @@ A polished, interactive dashboard and control center for [Obsidian](https://obsi
 | **Search** | Global vault search right from the dashboard |
 | **Pomodoro** | A focus timer with an animated ring; configurable focus/break lengths |
 | **Quote** | A rotating dose of inspiration |
+| **Deadline** | Countdown to a date you set, with an overdue state |
+| **Random note** | Open a random note from your vault |
+| **Quick actions** | Configurable launcher buttons — run commands, open notes or templates, capture, search |
+| **Pinned** | Your favorite notes, one click away; add or remove them from the widget settings |
+| **Popular notes** | Your most-linked notes, ranked by how many notes link to them |
+| **Orphan notes** | Notes nobody links to, newest first — spot forgotten notes |
+| **Backlinks** | Notes that link to the note you're currently viewing (updates live) |
+| **Progress** | How much of the day, month, and year has passed, as animated rings |
+| **Daily streak** | Consecutive days you've written a daily note, plus your best run |
 
 ## Installation
 
@@ -46,7 +59,10 @@ The plugin isn't on the community plugin list yet. To use it:
 
 - **Open the dashboard** — ribbon icon, `Ctrl/Cmd + Shift + D`, or the command palette.
 - **Edit the layout** — click the pencil button in the dashboard's control bar (or run *Toggle dashboard edit mode*). Drag widgets by their grip, resize from the corner, use the gear for per-widget settings, the ✕ to remove, and the **+** to add new widgets.
-- **Quick capture** — the *Capture to inbox* command, or the send button in the control bar.
+- **Work your tasks** — the **Today** widget manages today's daily-note checklist; the **All tasks** widget lists every open `- [ ]` in your vault (grouped by note). Click a task to jump to it in its note; tick the box to toggle it.
+- **Configure launchers** — **Quick actions** and **Pinned** have their own editors (edit mode → gear): add, reorder, and remove actions or pinned notes.
+- **Explore your links** — the **Backlinks** widget follows the note you have open; **Popular notes** and **Orphan notes** rank your vault's connectivity.
+- **Quick capture** — the *Capture to inbox* command, the send button in the control bar, or the Quick capture widget.
 - **Search** — the search button in the control bar, or the Search widget.
 
 ## Settings
@@ -59,6 +75,8 @@ All options live under *Settings → Aurora Dashboard*:
 - **Daily notes** — folder and filename format (tokens: `YYYY`, `YY`, `MMM`, `MM`, `DD`, `ddd`)
 - **Capture** — target (inbox file vs today's note), folder, and inbox filename
 - **Pomodoro** — default focus/break lengths used by new Pomodoro widgets
+
+Many widgets also have per-widget options (edit mode → gear), e.g. how many entries to show, whether to include completed tasks, whether the week starts on Monday, or which actions appear on a Quick actions button.
 
 ## Development
 
