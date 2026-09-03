@@ -803,7 +803,7 @@
 /* ---- capture / search widget ---- */
 
 .widget-capture .dash-widget-body {
-	gap: 8px;
+	gap: 12px;
 }
 .dash-capture-input {
 	flex: 1;
@@ -828,6 +828,7 @@
 	align-items: center;
 	justify-content: space-between;
 	gap: 8px;
+	margin-top: 4px;
 }
 .dash-capture-hint {
 	font-size: 11px;
