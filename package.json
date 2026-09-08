@@ -1,6 +1,6 @@
 {
 	"name": "aurora-dashboard",
-	"version": "1.2.5",
+	"version": "1.2.6",
 	"description": "A polished interactive dashboard and control center for Obsidian.",
 	"main": "main.js",
 	"scripts": {
@@ -26,3 +26,4 @@
 		"esbuild@0.19.12": true
 	}
 }
+
