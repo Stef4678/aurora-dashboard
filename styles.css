@@ -1298,8 +1298,7 @@
 .dash-habits-grid {
 	display: grid;
 	grid-auto-rows: auto;
-	column-gap: 3px;
-	row-gap: 3px;
+	gap: 3px;
 	align-items: center;
 }
 .dash-habit-hname,
