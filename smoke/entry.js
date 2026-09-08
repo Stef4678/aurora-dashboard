@@ -33,7 +33,7 @@ async function main() {
 	const layoutTypes = plugin.settings.layout.map((i) => i.type).sort();
 	const regTypes = getWidgetTypes().map((t) => t.type).sort();
 	checks.allWidgetTypesInDefaultLayout = layoutTypes.join(",") === regTypes.join(",");
-	checks.hasControlCenter = content.textContent.includes("Control Center");
+	checks.hasControlCenter = content.textContent.includes("Aurora Dashboard");
 	checks.hasClock = !!content.querySelector(".dash-clock-time");
 	checks.hasCalendar = !!content.querySelector(".dash-cal-grid");
 	checks.hasHeatmap = !!content.querySelector(".dash-heatmap");
@@ -170,7 +170,71 @@ async function main() {
 	checks.hasStreak = !!content.querySelector(".dash-streak-num");
 	checks.newWidgetErrors = errors;
 
+	// habit tracker widget — seed habits + log, then click a cell to toggle it
+	const habitsInst = plugin.settings.layout.find((i) => i.type === "habits");
+	checks.habitsInDefaultLayout = !!habitsInst;
+	if (habitsInst) {
+		habitsInst.settings.habits = [
+			{ id: "h1", name: "Exercise" },
+			{ id: "h2", name: "Read" },
+		];
+		habitsInst.settings.log = { h1: [dateKeyNow()] };
+		plugin.refreshWidget(habitsInst.uid);
+		await tick(30);
+		const habBody = content.querySelector(".widget-habits");
+		checks.habitsRows = habBody ? habBody.querySelectorAll(".dash-habit-name").length : 0;
+		checks.habitsCells = habBody ? habBody.querySelectorAll(".dash-habit-cell").length : 0;
+		const todayCell = habBody ? habBody.querySelector(`.dash-habit-cell[data-date="${dateKeyNow()}"]`) : null;
+		checks.habitsTodayCell = !!todayCell;
+		const h2Today = habBody
+			? habBody.querySelector(`.dash-habit-cell[data-hid="h2"][data-date="${dateKeyNow()}"]`)
+			: null;
+		if (h2Today) {
+			h2Today.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+			await tick(30);
+			checks.habitToggled = (habitsInst.settings.log.h2 || []).includes(dateKeyNow());
+			const nowDone = habBody.querySelector(`.dash-habit-cell[data-hid="h2"][data-date="${dateKeyNow()}"]`);
+			checks.habitCellDoneClass = nowDone ? nowDone.classList.contains("is-done") : false;
+		} else {
+			checks.habitToggled = false;
+			checks.habitCellDoneClass = false;
+		}
+	} else {
+		checks.habitsRows = 0;
+		checks.habitsCells = 0;
+		checks.habitsTodayCell = false;
+		checks.habitToggled = false;
+		checks.habitCellDoneClass = false;
+	}
+
 	checks.settingsSaved = await plugin.saveSettings().then(() => true).catch(() => false);
+
+	// v1 -> v2 migration: an existing layout without the Habits widget gets one added
+	const legacy = new AuroraDashboardPlugin(new App(), { id: "cool-dashboard" });
+	legacy._data = {
+		version: 1,
+		columns: 12,
+		rowHeight: 88,
+		gap: 14,
+		accent: "",
+		editMode: false,
+		trackActivity: true,
+		dailyNoteFolder: "",
+		dailyNoteFormat: "YYYY-MM-DD",
+		captureTarget: "inbox",
+		captureFolder: "",
+		inboxFile: "Inbox.md",
+		pomodoroFocus: 25,
+		pomodoroBreak: 5,
+		activity: {},
+		layout: [
+			{ type: "clock", uid: "a", x: 0, y: 0, w: 4, h: 2, settings: {} },
+			{ type: "streak", uid: "b", x: 8, y: 16, w: 4, h: 2, settings: {} },
+		],
+	};
+	await legacy.loadSettings();
+	checks.migrationAddsHabits = !!legacy.settings.layout.find((i) => i.type === "habits");
+	checks.migrationBumpsVersion = legacy.settings.version === 2;
 
 	const failed = Object.entries(checks).filter(
 		([, v]) => v === false || v === undefined || (Array.isArray(v) && v.length > 0)

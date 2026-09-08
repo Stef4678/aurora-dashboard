@@ -12,3 +12,4 @@ import "./links";
 import "./backlinks";
 import "./progress";
 import "./streak";
+import "./habits";

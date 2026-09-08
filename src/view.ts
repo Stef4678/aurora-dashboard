@@ -23,7 +23,7 @@ export class DashboardView extends ItemView {
 		return VIEW_TYPE_DASHBOARD;
 	}
 	getDisplayText(): string {
-		return "Dashboard";
+		return "Aurora Dashboard";
 	}
 	getIcon(): string {
 		return "layout-dashboard";
@@ -102,7 +102,7 @@ export class DashboardView extends ItemView {
 		const logo = left.createDiv("dash-logo");
 		setIcon(logo, "layout-dashboard");
 		const brand = left.createDiv("dash-brand");
-		brand.createDiv("dash-brand-title").setText("Control Center");
+		brand.createDiv("dash-brand-title").setText("Aurora Dashboard");
 		brand.createDiv("dash-brand-sub").setText(
 			`${this.greeting()} · ${new Date().toLocaleDateString(undefined, {
 				weekday: "long",

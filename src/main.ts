@@ -57,6 +57,27 @@ export default class AuroraDashboardPlugin extends Plugin implements DashboardPl
 				if (t?.defaultSettings) inst.settings = Object.assign({}, t.defaultSettings, inst.settings ?? {});
 				return inst;
 			});
+
+		// v2: the Habits widget is part of the dashboard by default. Add it to
+		// existing layouts (once) so everyone gets it without a manual step.
+		if (this.settings.version < 2) {
+			const t = widgetType("habits");
+			if (t && !this.settings.layout.some((i) => i.type === "habits")) {
+				const pos = findFirstFree(this.settings.layout, t.defaultSize, this.settings.columns);
+				const defaults: Record<string, unknown> = { ...(t.defaultSettings ?? {}) };
+				this.settings.layout.push({
+					type: "habits",
+					uid: uid(),
+					x: pos.x,
+					y: pos.y,
+					w: t.defaultSize.w,
+					h: t.defaultSize.h,
+					settings: defaults,
+				});
+			}
+			this.settings.version = 2;
+			void this.saveSettings();
+		}
 	}
 
 	async saveSettings(): Promise<void> {

@@ -16,7 +16,7 @@ A polished, interactive dashboard and control center for [Obsidian](https://obsi
 - **Quick capture** — send a thought to your inbox file or today's note in one keystroke
 - **Quick actions launcher** — configurable buttons that run Obsidian commands, open notes, run searches, or insert notes from templates
 - **Link insights** — see which notes are most-linked, which are orphans, and what links to your current note
-- **Habit & progress nudges** — daily-note streaks and animated day/month/year progress rings
+- **Habit & progress nudges** — daily-note streaks, animated day/month/year progress rings, and a rolling habit tracker with per-habit streaks
 - **Custom accent color** — theme the highlights, charts, and progress rings (with presets)
 - **Fully offline** — all data lives in your vault, no external services
 
@@ -45,6 +45,7 @@ A polished, interactive dashboard and control center for [Obsidian](https://obsi
 | **Backlinks** | Notes that link to the note you're currently viewing (updates live) |
 | **Progress** | How much of the day, month, and year has passed, as animated rings |
 | **Daily streak** | Consecutive days you've written a daily note, plus your best run |
+| **Habits** | Track daily habits on a rolling grid — check off any of the last few days, with today and current-streak chips |
 
 ## Installation
 
@@ -61,6 +62,7 @@ The plugin isn't on the community plugin list yet. To use it:
 - **Edit the layout** — click the pencil button in the dashboard's control bar (or run *Toggle dashboard edit mode*). Drag widgets by their grip, resize from the corner, use the gear for per-widget settings, the ✕ to remove, and the **+** to add new widgets.
 - **Work your tasks** — the **Today** widget manages today's daily-note checklist; the **All tasks** widget lists every open `- [ ]` in your vault (grouped by note). Click a task to jump to it in its note; tick the box to toggle it.
 - **Configure launchers** — **Quick actions** and **Pinned** have their own editors (edit mode → gear): add, reorder, and remove actions or pinned notes.
+- **Track habits** — the **Habits** widget's editor (edit mode → gear) names the habits you want to track and how many trailing days to show; click a square to mark that habit done for that day.
 - **Explore your links** — the **Backlinks** widget follows the note you have open; **Popular notes** and **Orphan notes** rank your vault's connectivity.
 - **Quick capture** — the *Capture to inbox* command, the send button in the control bar, or the Quick capture widget.
 - **Search** — the search button in the control bar, or the Search widget.

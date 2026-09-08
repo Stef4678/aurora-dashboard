@@ -153,5 +153,6 @@ export function defaultLayout(): WidgetInstance[] {
 		{ type: "pinned", x: 0, y: 16, w: 4, h: 3 },
 		{ type: "progress", x: 4, y: 16, w: 4, h: 2 },
 		{ type: "streak", x: 8, y: 16, w: 4, h: 2 },
+		{ type: "habits", x: 0, y: 19, w: 6, h: 4 },
 	]);
 }

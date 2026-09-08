@@ -1284,6 +1284,125 @@
 	transform: scale(1.18);
 }
 
+/* ---- habits ---- */
+
+.widget-habits .dash-widget-body {
+	padding: 8px 10px 12px;
+}
+.dash-habits-chips {
+	display: flex;
+	gap: 6px;
+	flex-wrap: wrap;
+	margin-bottom: 10px;
+}
+.dash-habits-grid {
+	display: grid;
+	grid-auto-rows: auto;
+	column-gap: 3px;
+	row-gap: 3px;
+	align-items: center;
+}
+.dash-habit-hname,
+.dash-habit-hcell {
+	font-size: 8px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--text-faint);
+	text-align: center;
+	line-height: 1.15;
+	white-space: nowrap;
+}
+.dash-habit-hname {
+	text-align: left;
+	padding-left: 4px;
+	font-weight: 600;
+	letter-spacing: 0.08em;
+}
+.dash-habit-hcell.is-today .dash-habit-dn {
+	color: var(--dash-accent);
+	font-weight: 700;
+}
+.dash-habit-wd {
+	display: block;
+}
+.dash-habit-dn {
+	display: block;
+	color: var(--text-muted);
+	font-variant-numeric: tabular-nums;
+}
+.dash-habit-name {
+	min-width: 0;
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	font-size: 12px;
+	font-weight: 600;
+	padding: 0 4px;
+	overflow: hidden;
+	white-space: nowrap;
+	color: var(--text-normal);
+}
+.dash-habit-name-text {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	min-width: 0;
+}
+.dash-habit-fire {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	flex: none;
+	font-size: 9px;
+	font-weight: 700;
+	color: var(--dash-accent);
+	font-variant-numeric: tabular-nums;
+	opacity: 0.9;
+}
+.dash-habit-fire svg {
+	width: 11px;
+	height: 11px;
+}
+.dash-habit-cell {
+	height: 18px;
+	border-radius: 5px;
+	cursor: pointer;
+	background: color-mix(in srgb, var(--background-modifier-border) 45%, transparent);
+	border: 1px solid transparent;
+	transition: background 0.15s, border-color 0.15s, transform 0.12s;
+	box-sizing: border-box;
+}
+.dash-habit-cell:hover {
+	border-color: color-mix(in srgb, var(--dash-accent) 65%, transparent);
+	transform: scale(1.15);
+}
+.dash-habit-cell:active {
+	transform: scale(0.9);
+}
+.dash-habit-cell.is-today {
+	border-color: color-mix(in srgb, var(--dash-accent) 45%, transparent);
+}
+.dash-habit-cell.is-done {
+	background: linear-gradient(135deg, var(--dash-accent), color-mix(in srgb, var(--dash-accent) 62%, #000));
+	border-color: transparent;
+	box-shadow: 0 2px 6px -2px color-mix(in srgb, var(--dash-accent) 60%, transparent);
+}
+.dash-habit-cell.is-today.is-done {
+	border-color: #fff;
+	border-width: 1px;
+}
+.dash-habit-sum {
+	font-size: 9px;
+	color: var(--text-faint);
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+	padding-right: 2px;
+}
+.dash-habit-days-input {
+	max-width: 70px;
+	flex: none;
+}
+
 /* ---- responsive ---- */
 
 @media (max-width: 900px) {

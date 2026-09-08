@@ -150,3 +150,6 @@ smoke/out.js
 
 # Local Claude Code settings
 .claude/
+
+# Local scratch (screenshot probes, audit scratch)
+.audit/
