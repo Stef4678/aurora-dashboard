@@ -153,3 +153,8 @@ smoke/out.js
 
 # Local scratch (screenshot probes, audit scratch)
 .audit/
+
+# Bug-hunt scratch: the per-area compiled probes, fixtures and HTML dumps.
+# The audit reports themselves (bug-hunt/*.md) are committed; this keeps the
+# ~1.8 MB of generated scratch out of the repository.
+bug-hunt/scratch-*/
