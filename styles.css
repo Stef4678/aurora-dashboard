@@ -2,8 +2,17 @@
    Aurora Dashboard — control center
    ============================================================ */
 
-.view-content.dash-view {
+/*
+ * The accent is declared on :root so everything outside the dashboard body gets it
+ * too: the widget editors are Obsidian modals, rendered outside .dash-view, and
+ * every accent-styled control inside them was resolving to nothing. A custom
+ * accent still overrides this inline on .dash-view.
+ */
+:root {
 	--dash-accent: var(--interactive-accent, #7c3aed);
+}
+
+.view-content.dash-view {
 	--dash-radius: 16px;
 	height: 100%;
 	overflow: auto;
@@ -926,6 +935,11 @@
 	display: flex;
 	align-items: center;
 	gap: 8px;
+	margin-bottom: 8px;
+}
+/* The list already spaces its children. */
+.dash-qa-list .dash-qa-row {
+	margin-bottom: 0;
 }
 .dash-qa-input {
 	flex: 1;
@@ -938,6 +952,19 @@
 	color: var(--text-normal);
 	outline: none;
 }
+/*
+ * Single-line controls follow the theme's input height. Vertical padding on top of
+ * a themed height cropped the select labels and made rows uneven, so the padding
+ * is horizontal only and the box is measured border-box.
+ */
+input.dash-qa-input,
+select.dash-qa-select {
+	height: var(--input-height, 34px);
+	padding-top: 0;
+	padding-bottom: 0;
+	line-height: 1.4;
+	box-sizing: border-box;
+}
 .dash-qa-input:focus,
 .dash-qa-select:focus {
 	border-color: var(--dash-accent);
@@ -947,7 +974,7 @@
 	background: var(--background-secondary);
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 10px;
-	padding: 8px 8px;
+	padding: 0 8px;
 	font-size: 13px;
 	color: var(--text-normal);
 	outline: none;

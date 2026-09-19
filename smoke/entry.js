@@ -953,16 +953,52 @@ async function main() {
 	getWidgetTypes().find((t) => t.type === "embed").openSettings(modalPlugin, embInst2);
 	await tick(20);
 	const embModal = Modal.last;
+	const modalClasses = new Set();
+	const collectDashClasses = (el) => {
+		for (const node of el.querySelectorAll("*")) {
+			for (const cls of node.classList) if (cls.indexOf("dash-") === 0) modalClasses.add(cls);
+		}
+	};
+	collectDashClasses(embModal.contentEl);
 	const modeSelect = embModal.contentEl.querySelector("select.dash-embed-select");
 	modeSelect.value = "markdown";
 	modeSelect.dispatchEvent(new window.Event("change", { bubbles: true }));
 	await tick(20);
+	collectDashClasses(embModal.contentEl);
 	const mdArea = embModal.contentEl.querySelector("textarea.dash-embed-md");
 	mdArea.value = "closed without Done";
 	mdArea.dispatchEvent(new window.Event("input", { bubbles: true }));
 	embModal.close();
 	await tick(40);
 	checks.embedDraftSavedOnClose = embInst2.settings.mode === "markdown" && embInst2.settings.markdown === "closed without Done";
+
+	// ---- the editors' styling contract. jsdom has no layout engine, but it does
+	// parse the stylesheet, so the suite can check that it parses at all, that the
+	// selectors those editors depend on exist, and that every class they render has
+	// a rule (the audit found twelve selectors that could never match).
+	const cssText = require("fs").readFileSync(__dirname + "/../styles.css", "utf8");
+	const styleEl = document.createElement("style");
+	styleEl.textContent = cssText;
+	document.head.appendChild(styleEl);
+	let cssRules = [];
+	try {
+		cssRules = [...document.styleSheets[document.styleSheets.length - 1].cssRules];
+	} catch {
+		// Leave it empty: stylesheetParsesInFull fails loudly below.
+	}
+	const selectors = cssRules.map((r) => r.selectorText).filter(Boolean);
+	checks.stylesheetParsesInFull = selectors.length > 150;
+	checks.editorSelectorsExist = [".dash-btn-accent", ".dash-qa-select", ".dash-qa-input", ".dash-embed-select", ".dash-modal-foot"].filter(
+		(sel) => !selectors.includes(sel)
+	);
+	checks.modalClassesAllHaveRules = [...modalClasses].filter((cls) => !cssText.includes("." + cls));
+	checks.modalClassContractIsNotEmpty = modalClasses.size >= 6;
+	// The editors are modals, rendered outside .dash-view: the accent has to resolve
+	// for them too, or their buttons render as bare text.
+	checks.accentIsDefinedOutsideTheDashboard =
+		/:root\s*\{[^}]*--dash-accent:\s*var\(--interactive-accent/.test(cssText);
+	checks.singleLineControlsShareTheThemeHeight =
+		/input\.dash-qa-input,\s*select\.dash-qa-select\s*\{[^}]*height:\s*var\(--input-height/.test(cssText);
 
 	checks.settingsSaved = await plugin.saveSettings().then(() => true).catch(() => false);
 
