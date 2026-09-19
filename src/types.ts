@@ -46,7 +46,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-	version: 2,
+	version: 3,
 	columns: 12,
 	rowHeight: 88,
 	gap: 14,

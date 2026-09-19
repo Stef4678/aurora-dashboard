@@ -150,26 +150,34 @@ export default class AuroraDashboardPlugin extends Plugin implements DashboardPl
 		// Persisted geometry is repaired on load, never rendered outside the grid.
 		if (clampLayout(s.layout, s.columns)) await this.saveSettings();
 
-		// v2: the Habits widget is part of the dashboard by default. Add it to
-		// existing layouts (once) so everyone gets it without a manual step.
+		// v2 / v3: widgets that became part of the default board are added to
+		// existing layouts once, so nobody has to add them by hand.
 		if (this.settings.version < 2) {
-			const t = widgetType("habits");
-			if (t && !this.settings.layout.some((i) => i.type === "habits")) {
-				const pos = findFirstFree(this.settings.layout, t.defaultSize, this.settings.columns);
-				const defaults: Record<string, unknown> = { ...(t.defaultSettings ?? {}) };
-				this.settings.layout.push({
-					type: "habits",
-					uid: uid(),
-					x: pos.x,
-					y: pos.y,
-					w: t.defaultSize.w,
-					h: t.defaultSize.h,
-					settings: defaults,
-				});
-			}
+			this.addWidgetToLayout("habits");
 			this.settings.version = 2;
 			await this.saveSettings();
 		}
+		if (this.settings.version < 3) {
+			this.addWidgetToLayout("embed");
+			this.settings.version = 3;
+			await this.saveSettings();
+		}
+	}
+
+	/** Put one widget of `type` on the board, unless it already has one. */
+	private addWidgetToLayout(type: string): void {
+		const t = widgetType(type);
+		if (!t || this.settings.layout.some((i) => i.type === type)) return;
+		const pos = findFirstFree(this.settings.layout, t.defaultSize, this.settings.columns);
+		this.settings.layout.push({
+			type,
+			uid: uid(),
+			x: pos.x,
+			y: pos.y,
+			w: t.defaultSize.w,
+			h: t.defaultSize.h,
+			settings: { ...(t.defaultSettings ?? {}) },
+		});
 	}
 
 	/**

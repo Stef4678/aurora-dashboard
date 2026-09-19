@@ -322,7 +322,7 @@ async function main() {
 
 	const corrupt = new AuroraDashboardPlugin(new App(), { id: "cool-dashboard" });
 	corrupt._data = {
-		version: 2,
+		version: 3,
 		columns: 0,
 		rowHeight: NaN,
 		gap: 999,
@@ -344,7 +344,7 @@ async function main() {
 	// ---- widget identity and an explicitly empty layout ----
 	const dup = new AuroraDashboardPlugin(new App(), { id: "cool-dashboard" });
 	dup._data = {
-		version: 2,
+		version: 3,
 		layout: [
 			{ type: "clock", uid: "SHARED", x: 0, y: 0, w: 4, h: 2, settings: {} },
 			{ type: "calendar", uid: "SHARED", x: 4, y: 0, w: 4, h: 2, settings: {} },
@@ -355,7 +355,7 @@ async function main() {
 		dup.settings.layout.length === 2 && dup.settings.layout[0].uid !== dup.settings.layout[1].uid;
 
 	const emptyPlugin = new AuroraDashboardPlugin(new App(), { id: "cool-dashboard" });
-	emptyPlugin._data = { version: 2, layout: [] };
+	emptyPlugin._data = { version: 3, layout: [] };
 	await emptyPlugin.loadSettings();
 	checks.emptyLayoutRespected = emptyPlugin.settings.layout.length === 0;
 
@@ -369,7 +369,7 @@ async function main() {
 		layout: [{ type: "clock", uid: "a", x: 0, y: 0, w: 4, h: 2, settings: {} }],
 	};
 	await badVersion.loadSettings();
-	checks.versionRepaired = badVersion.settings.version === 2;
+	checks.versionRepaired = badVersion.settings.version === 3;
 	checks.versionRepairRunsMigration = badVersion.settings.layout.some((i) => i.type === "habits");
 
 	checks.activityNotAliased = freshPlugin.settings.activity !== DEFAULT_SETTINGS.activity;
@@ -443,7 +443,7 @@ async function main() {
 	// ---- gestures on a controlled board: cancel must not commit, release must ----
 	const dragPlugin = new AuroraDashboardPlugin(new App(), { id: "cool-dashboard" });
 	dragPlugin._data = {
-		version: 2,
+		version: 3,
 		editMode: true,
 		layout: [
 			{ type: "deadline", uid: "d1", x: 0, y: 0, w: 3, h: 2, settings: {} },
@@ -588,7 +588,7 @@ async function main() {
 	});
 	const collapsePlugin = new AuroraDashboardPlugin(new App(), { id: "cool-dashboard" });
 	collapsePlugin._data = {
-		version: 2,
+		version: 3,
 		layout: [
 			{ type: "deadline", uid: "z1", x: 0, y: 0, w: 4, h: 4, settings: {}, collapsed: true },
 			{ type: "random", uid: "z2", x: 0, y: 1, w: 4, h: 2, settings: {} },
@@ -604,7 +604,7 @@ async function main() {
 	checks.expandingResolvesOverlap = !expanded.some((inst, i) => hasOverlap(expanded.slice(0, i), inst));
 
 	// ---- LOW-07: the migration's write has landed before loadSettings returns ----
-	checks.migrationSaveLandsBeforeReturn = badVersion._data.version === 2;
+	checks.migrationSaveLandsBeforeReturn = badVersion._data.version === 3;
 
 	// ---- LOW-11: a widget that throws after subscribing still releases it ----
 	registerWidgetType({
@@ -634,7 +634,7 @@ async function main() {
 	// ---- LOW-12: a single-edit day is a lit square, not "NaN" ----
 	const heatPlugin = new AuroraDashboardPlugin(new App(), { id: "cool-dashboard" });
 	heatPlugin._data = {
-		version: 2,
+		version: 3,
 		activity: { [dateKeyNow()]: 1 },
 		layout: [{ type: "activity", uid: "h1", x: 0, y: 0, w: 3, h: 4, settings: {} }],
 	};
@@ -650,7 +650,7 @@ async function main() {
 	// ---- LOW-13: the year ring counts calendar days, not elapsed milliseconds ----
 	const progPlugin = new AuroraDashboardPlugin(new App(), { id: "cool-dashboard" });
 	progPlugin._data = {
-		version: 2,
+		version: 3,
 		layout: [{ type: "progress", uid: "p1", x: 0, y: 0, w: 4, h: 2, settings: {} }],
 	};
 	const DateBeforeRing = Date;
@@ -704,7 +704,7 @@ async function main() {
 	// ---- LOW-15: "Best" is not capped below the current streak ----
 	const streakPlugin = new AuroraDashboardPlugin(new App(), { id: "cool-dashboard" });
 	streakPlugin._data = {
-		version: 2,
+		version: 3,
 		layout: [{ type: "streak", uid: "s1", x: 0, y: 0, w: 4, h: 2, settings: {} }],
 	};
 	await streakPlugin.onload();
@@ -725,7 +725,7 @@ async function main() {
 	// ---- LOW-16: a hand-written habit keeps one identity across renders ----
 	const habitPlugin = new AuroraDashboardPlugin(new App(), { id: "cool-dashboard" });
 	habitPlugin._data = {
-		version: 2,
+		version: 3,
 		layout: [
 			{
 				type: "habits",
@@ -870,7 +870,7 @@ async function main() {
 	// write them on an explicit "Done"; closing with the ✕ discarded the lot.
 	const modalPlugin = new AuroraDashboardPlugin(new App(), { id: "cool-dashboard" });
 	modalPlugin._data = {
-		version: 2,
+		version: 3,
 		layout: [
 			{ type: "pinned", uid: "pn", x: 0, y: 0, w: 4, h: 3, settings: { pins: [] } },
 			{ type: "quickactions", uid: "qa1", x: 0, y: 3, w: 4, h: 3, settings: { actions: [] } },
@@ -991,12 +991,36 @@ async function main() {
 	};
 	await legacy.loadSettings();
 	checks.migrationAddsHabits = !!legacy.settings.layout.find((i) => i.type === "habits");
-	checks.migrationBumpsVersion = legacy.settings.version === 2;
+	checks.migrationBumpsVersion = legacy.settings.version === 3;
+	checks.migrationAddsEmbed = !!legacy.settings.layout.find((i) => i.type === "embed");
+
+	// v2 -> v3: an existing dashboard gains the Embed widget exactly once
+	const upgraded = new AuroraDashboardPlugin(new App(), { id: "cool-dashboard" });
+	upgraded._data = {
+		version: 2,
+		layout: [
+			{ type: "clock", uid: "c1", x: 0, y: 0, w: 4, h: 2, settings: {} },
+			{ type: "embed", uid: "e1", x: 4, y: 0, w: 6, h: 4, settings: { mode: "markdown", markdown: "kept" } },
+		],
+	};
+	await upgraded.loadSettings();
+	checks.embedMigrationDoesNotDuplicate = upgraded.settings.layout.filter((i) => i.type === "embed").length === 1;
+	checks.embedMigrationKeepsSettings = upgraded.settings.layout.find((i) => i.type === "embed").settings.markdown === "kept";
+
+	const v2Layout = new AuroraDashboardPlugin(new App(), { id: "cool-dashboard" });
+	v2Layout._data = {
+		version: 2,
+		layout: [{ type: "clock", uid: "c1", x: 0, y: 0, w: 4, h: 2, settings: {} }],
+	};
+	await v2Layout.loadSettings();
+	checks.embedMigrationAddsWidget =
+		v2Layout.settings.layout.some((i) => i.type === "embed") && v2Layout.settings.version === 3;
+	checks.embedMigrationPersists = v2Layout._data.version === 3;
 
 	// a malformed layout entry must not take the whole plugin down with it
 	const broken = new AuroraDashboardPlugin(new App(), { id: "cool-dashboard" });
 	broken._data = {
-		version: 2,
+		version: 3,
 		layout: [null, 7, "junk", { type: "clock", uid: "k", x: 0, y: 0, w: 4, h: 2, settings: {} }],
 	};
 	let onloadThrew = false;
@@ -1013,7 +1037,7 @@ async function main() {
 	// a widget from another plugin version is kept, not deleted
 	const unknown = new AuroraDashboardPlugin(new App(), { id: "cool-dashboard" });
 	unknown._data = {
-		version: 2,
+		version: 3,
 		layout: [
 			{ type: "clock", uid: "c", x: 0, y: 0, w: 4, h: 2, settings: {} },
 			{ type: "from-newer-version", uid: "z", x: 4, y: 0, w: 4, h: 2, settings: { keep: "me" } },
