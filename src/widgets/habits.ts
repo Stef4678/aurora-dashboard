@@ -14,6 +14,15 @@ type HabitLog = Record<string, string[]>;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const DAY_LETTERS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
+/** A stable id for a hand-written habit that has none: same name, same id. */
+function legacyId(name: string): string {
+	const slug = name
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, "-")
+		.replace(/^-+|-+$/g, "");
+	return "legacy-" + (slug || "habit");
+}
+
 /** Rebuilds the habit list from (possibly unknown) instance data. */
 function readHabits(inst: WidgetInstance): Habit[] {
 	const raw = inst.settings.habits;
@@ -23,10 +32,16 @@ function readHabits(inst: WidgetInstance): Habit[] {
 	for (const v of raw) {
 		if (!v || typeof v !== "object") continue;
 		const o = v as Record<string, unknown>;
-		const id = typeof o.id === "string" && o.id !== "" ? o.id : uid();
-		if (seen.has(id)) continue;
-		seen.add(id);
 		const name = typeof o.name === "string" && o.name.trim() !== "" ? o.name.trim() : "Habit";
+		// An id-less habit used to get a fresh random id on every render, which
+		// orphaned the completions logged against it.
+		let id = typeof o.id === "string" && o.id !== "" ? o.id : legacyId(name);
+		if (seen.has(id)) {
+			let n = 2;
+			while (seen.has(id + "-" + n)) n++;
+			id = id + "-" + n;
+		}
+		seen.add(id);
 		out.push({ id, name });
 	}
 	return out;

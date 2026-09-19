@@ -1,7 +1,8 @@
-import { setIcon, TFile } from "obsidian";
+import { Notice, setIcon, TFile } from "obsidian";
 import type { WidgetType } from "../types";
 import { registerWidgetType } from "../registry";
 import { relTime } from "../utils";
+import { nearestTaskLine, lineMatchesTask, parseTasks, toggleTaskLine, type ParsedTask } from "../tasks";
 
 export const recentType: WidgetType = {
 	type: "recent",
@@ -71,12 +72,14 @@ export const tasksType: WidgetType = {
 	defaultSize: { w: 4, h: 3 },
 	render(ctx) {
 		const plugin = ctx.plugin;
-		const path = plugin.dailyNotePath(new Date());
 		const body = ctx.body;
+		// Re-derived for every action: a dashboard left open across midnight must
+		// write to the new day's note, not the one it was drawn for.
+		const currentPath = (): string => plugin.dailyNotePath(new Date());
 
 		const load = async (): Promise<void> => {
 			body.empty();
-			const file = plugin.app.vault.getAbstractFileByPath(path);
+			const file = plugin.app.vault.getAbstractFileByPath(currentPath());
 			const list = body.createDiv("dash-list");
 
 			if (!(file instanceof TFile)) {
@@ -85,19 +88,14 @@ export const tasksType: WidgetType = {
 				return;
 			}
 
-			const text = await plugin.app.vault.read(file);
-			const open: string[] = [];
-			const done: string[] = [];
-			for (const ln of text.split("\n")) {
-				const m = ln.match(/^\s*[-*]\s+\[([ xX])\]\s+(.+)$/);
-				if (!m) continue;
-				((m[1] === " ") ? open : done).push(m[2]);
-			}
+			const tasks = parseTasks(await plugin.app.vault.read(file));
+			const open = tasks.filter((t) => !t.done);
+			const done = tasks.filter((t) => t.done);
 
-			for (const t of open.slice(0, 20)) addRow(list, t, false);
+			for (const t of open.slice(0, 20)) addRow(list, t);
 			if (done.length) {
 				list.createDiv("dash-divider").setText(`Completed (${done.length})`);
-				for (const t of done.slice(0, 5)) addRow(list, t, true);
+				for (const t of done.slice(0, 5)) addRow(list, t);
 			}
 			if (!open.length && !done.length) {
 				list.createDiv("dash-empty").setText("Nothing here yet");
@@ -122,45 +120,47 @@ export const tasksType: WidgetType = {
 			});
 		};
 
-		const addRow = (list: HTMLElement, text: string, isDone: boolean): void => {
+		const addRow = (list: HTMLElement, task: ParsedTask): void => {
 			const row = list.createDiv("dash-list-row dash-task");
-			const cb = row.createDiv("dash-check" + (isDone ? " is-checked" : ""));
-			setIcon(cb, isDone ? "check-circle" : "circle");
-			row.createDiv("dash-list-name" + (isDone ? " is-done" : "")).setText(text);
-			cb.addEventListener("click", () => void toggleTask(text));
+			const cb = row.createDiv("dash-check" + (task.done ? " is-checked" : ""));
+			setIcon(cb, task.done ? "check-circle" : "circle");
+			row.createDiv("dash-list-name" + (task.done ? " is-done" : "")).setText(task.text);
+			cb.addEventListener("click", () => void toggleTask(task));
 		};
 
-		const toggleTask = async (text: string): Promise<void> => {
-			const file = plugin.app.vault.getAbstractFileByPath(path);
+		const toggleTask = async (task: ParsedTask): Promise<void> => {
+			const file = plugin.app.vault.getAbstractFileByPath(currentPath());
 			if (!(file instanceof TFile)) return;
-			const cur = await plugin.app.vault.read(file);
-			const out = cur
-				.split("\n")
-				.map((ln) => {
-					const m = ln.match(/^(\s*[-*])\s+\[([ xX])\]\s+(.+)$/);
-					if (m && m[3] === text) return `${m[1]} [${m[2] === " " ? "x" : " "}] ${m[3]}`;
-					return ln;
-				})
-				.join("\n");
-			await plugin.app.vault.modify(file, out);
+			try {
+				const lines = (await plugin.app.vault.read(file)).split("\n");
+				// Rewrite the one line this row came from. Matching on text alone would
+				// flip every task in the note that happens to share the wording.
+				let idx = task.line;
+				if (!lineMatchesTask(lines[idx], task.text)) idx = nearestTaskLine(lines, task.text, task.line);
+				if (idx < 0) return;
+				lines[idx] = toggleTaskLine(lines[idx]);
+				await plugin.app.vault.modify(file, lines.join("\n"));
+			} catch (e) {
+				console.error("Aurora Dashboard: could not update that task.", e);
+				new Notice("Could not update that task.");
+				return;
+			}
 			ctx.refresh();
 		};
 
 		const addNewTask = async (text: string): Promise<void> => {
 			if (!text) return;
-			const existing = plugin.app.vault.getAbstractFileByPath(path);
-			let file: TFile;
-			if (existing instanceof TFile) {
-				file = existing;
-			} else {
-				try {
-					file = await plugin.app.vault.create(path, "");
-				} catch {
-					return;
-				}
+			const path = currentPath();
+			try {
+				const existing = plugin.app.vault.getAbstractFileByPath(path);
+				const file = existing instanceof TFile ? existing : await plugin.app.vault.create(path, "");
+				const cur = await plugin.app.vault.read(file);
+				await plugin.app.vault.modify(file, (cur ? cur + "\n" : "") + "- [ ] " + text);
+			} catch (e) {
+				console.error("Aurora Dashboard: could not add that task.", e);
+				new Notice("Could not add that task.");
+				return;
 			}
-			const cur = await plugin.app.vault.read(file);
-			await plugin.app.vault.modify(file, (cur ? cur + "\n" : "") + "- [ ] " + text);
 			ctx.refresh();
 		};
 
@@ -191,8 +191,12 @@ export const captureType: WidgetType = {
 		const doCapture = async (): Promise<void> => {
 			const t = ta.value.trim();
 			if (!t) return;
-			await ctx.plugin.captureText(t);
-			ta.value = "";
+			try {
+				await ctx.plugin.captureText(t);
+				ta.value = "";
+			} catch {
+				// captureText has already reported it; keep the text in the box.
+			}
 		};
 
 		btn.addEventListener("click", () => void doCapture());

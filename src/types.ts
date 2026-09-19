@@ -36,6 +36,12 @@ export interface Settings {
 	pomodoroFocus: number;
 	pomodoroBreak: number;
 	layout: WidgetInstance[];
+	/**
+	 * Widgets whose type is not available in this build, kept verbatim so that
+	 * installing an older/newer plugin version never destroys them. They are not
+	 * rendered and take no grid space; a load that knows their type moves them back.
+	 */
+	orphans: WidgetInstance[];
 	activity: Record<string, number>;
 }
 
@@ -55,6 +61,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	pomodoroFocus: 25,
 	pomodoroBreak: 5,
 	layout: [],
+	orphans: [],
 	activity: {},
 };
 
@@ -65,6 +72,11 @@ export interface WidgetCtx {
 	body: HTMLElement;
 	/** Re-render this single widget in place. */
 	refresh: () => void;
+	/**
+	 * Register a cleanup that runs when the widget is re-rendered or the view
+	 * closes — including when `render` throws after taking a subscription.
+	 */
+	onDispose?: (fn: () => void) => void;
 }
 
 export interface WidgetHandle {

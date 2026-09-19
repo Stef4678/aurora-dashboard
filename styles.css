@@ -228,6 +228,8 @@
 	transition: opacity 0.2s;
 	color: var(--text-faint);
 	flex: none;
+	/* The gesture is ours: without this a touch device pans instead of dragging. */
+	touch-action: none;
 }
 .dash-grip svg {
 	width: 15px;
@@ -308,9 +310,21 @@
 .dash-widget.collapsed .dash-widget-body {
 	display: none;
 }
+/* A collapsed card is one row tall, so it must not offer a height resize. */
+.dash-widget.collapsed .dash-resize {
+	display: none;
+}
 
 .dash-widget.no-header .dash-widget-header {
 	display: none;
+}
+/* ...but in edit mode even a headerless widget needs its grip and actions. */
+.dash-view.editing .dash-widget.no-header .dash-widget-header {
+	display: flex;
+	padding-top: 4px;
+}
+.dash-view.editing .dash-widget.no-header .dash-widget-actions {
+	opacity: 1;
 }
 
 .dash-widget-body {
@@ -338,6 +352,7 @@
 	cursor: nwse-resize;
 	opacity: 0;
 	transition: opacity 0.2s;
+	touch-action: none;
 	background: linear-gradient(
 		135deg,
 		transparent 52%,
@@ -366,7 +381,7 @@
 
 /* ---- clock ---- */
 
-.widget-clock .dash-widget-body {
+.dash-widget-body.widget-clock {
 	align-items: center;
 	justify-content: center;
 	text-align: center;
@@ -733,7 +748,7 @@
 
 /* ---- vault-wide tasks ---- */
 
-.widget-vaulttasks .dash-widget-body {
+.dash-widget-body.widget-vaulttasks {
 	padding: 2px 10px 12px;
 }
 .widget-vaulttasks .dash-list-row {
@@ -802,7 +817,7 @@
 
 /* ---- capture / search widget ---- */
 
-.widget-capture .dash-widget-body {
+.dash-widget-body.widget-capture {
 	gap: 12px;
 }
 .dash-capture-input {
@@ -843,7 +858,7 @@
 	padding: 0 14px;
 }
 
-.widget-search .dash-widget-body {
+.dash-widget-body.widget-search {
 	justify-content: center;
 }
 .widget-search .dash-search-input {
@@ -853,7 +868,7 @@
 
 /* ---- quick actions ---- */
 
-.widget-quickactions .dash-widget-body {
+.dash-widget-body.widget-quickactions {
 	padding: 4px 10px 12px;
 }
 .dash-quick-grid {
@@ -944,7 +959,7 @@
 
 /* ---- progress rings ---- */
 
-.widget-progress .dash-widget-body {
+.dash-widget-body.widget-progress {
 	align-items: center;
 	justify-content: center;
 }
@@ -999,7 +1014,7 @@
 
 /* ---- daily streak ---- */
 
-.widget-streak .dash-widget-body {
+.dash-widget-body.widget-streak {
 	align-items: center;
 	justify-content: center;
 	text-align: center;
@@ -1044,7 +1059,7 @@
 
 /* ---- pomodoro ---- */
 
-.widget-pomodoro .dash-widget-body {
+.dash-widget-body.widget-pomodoro {
 	align-items: center;
 	justify-content: center;
 	gap: 2px;
@@ -1100,7 +1115,7 @@
 
 /* ---- quote ---- */
 
-.widget-quote .dash-widget-body {
+.dash-widget-body.widget-quote {
 	justify-content: center;
 	gap: 6px;
 	padding: 8px 18px;
@@ -1120,7 +1135,7 @@
 
 /* ---- deadline ---- */
 
-.widget-deadline .dash-widget-body {
+.dash-widget-body.widget-deadline {
 	justify-content: center;
 	gap: 2px;
 	padding: 10px 16px;
@@ -1160,7 +1175,7 @@
 
 /* ---- random note ---- */
 
-.widget-random .dash-widget-body {
+.dash-widget-body.widget-random {
 	padding: 10px 12px;
 }
 .dash-random-btn {
@@ -1286,7 +1301,7 @@
 
 /* ---- habits ---- */
 
-.widget-habits .dash-widget-body {
+.dash-widget-body.widget-habits {
 	padding: 8px 10px 12px;
 }
 .dash-habits-chips {
@@ -1400,6 +1415,101 @@
 .dash-habit-days-input {
 	max-width: 70px;
 	flex: none;
+}
+
+/* ---- embed ---- */
+
+.dash-widget-body.widget-embed {
+	padding: 0;
+	overflow: hidden;
+}
+.dash-embed {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+}
+.dash-embed-content {
+	flex: 1;
+	min-height: 0;
+	overflow: auto;
+	padding: 8px 14px 10px;
+	font-size: 13px;
+	line-height: 1.5;
+}
+.dash-embed-content.is-clipped {
+	overflow: hidden;
+}
+.dash-embed-content > :first-child {
+	margin-top: 0;
+}
+.dash-embed-content > :last-child {
+	margin-bottom: 0;
+}
+.dash-embed-content h1,
+.dash-embed-content h2,
+.dash-embed-content h3,
+.dash-embed-content h4 {
+	font-size: 1.15em;
+	margin: 0.7em 0 0.35em;
+	line-height: 1.3;
+}
+.dash-embed-content h1,
+.dash-embed-content h2 {
+	border-bottom: none;
+	padding-bottom: 0;
+}
+.dash-embed-content img {
+	max-width: 100%;
+	height: auto;
+}
+.dash-embed-content table {
+	font-size: 12px;
+}
+.dash-embed-content pre {
+	font-size: 11px;
+}
+.dash-embed-source {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex: none;
+	padding: 5px 12px 7px;
+	border-top: 1px solid var(--background-modifier-border);
+	color: var(--text-faint);
+	font-size: 10px;
+	cursor: pointer;
+	transition: color 0.15s;
+}
+.dash-embed-source:hover {
+	color: var(--dash-accent);
+}
+.dash-embed-source .dash-list-icon {
+	width: 13px;
+	height: 13px;
+}
+.dash-embed-source .dash-list-icon svg {
+	width: 12px;
+	height: 12px;
+}
+.dash-embed-source-name {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* embed settings modal */
+.dash-embed-select {
+	max-width: none;
+	flex: 1;
+}
+.dash-embed-md {
+	min-height: 130px;
+	width: 100%;
+	box-sizing: border-box;
+	resize: vertical;
+	font-family: var(--font-monospace);
+	font-size: 12px;
 }
 
 /* ---- responsive ---- */

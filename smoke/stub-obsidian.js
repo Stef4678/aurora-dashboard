@@ -13,6 +13,7 @@ globalThis.document = window.document;
 globalThis.HTMLElement = window.HTMLElement;
 globalThis.SVGElement = window.SVGElement;
 globalThis.Node = window.Node;
+globalThis.getComputedStyle = window.getComputedStyle.bind(window);
 globalThis.requestAnimationFrame = window.requestAnimationFrame;
 
 // ---- DOM helpers that Obsidian injects onto HTMLElement ----
@@ -78,6 +79,14 @@ proto.setAttr = function (k, v) {
 
 // ---- types ----
 class TAbstractFile {}
+class TFolder extends TAbstractFile {
+	constructor(path) {
+		super();
+		this.path = path;
+		this.name = path.split("/").pop() || path;
+		this.children = [];
+	}
+}
 class TFile extends TAbstractFile {
 	constructor(path, content, ctime, mtime) {
 		super();
@@ -108,6 +117,37 @@ function setIcon(el, name) {
 	return el;
 }
 
+// ---- lifecycle / markdown rendering ----
+
+class Component {
+	load() {}
+	unload() {}
+	onload() {}
+	onunload() {}
+	addChild(c) {
+		return c;
+	}
+	removeChild(c) {
+		return c;
+	}
+	registerEvent() {}
+	registerDomEvent() {}
+	registerInterval() {}
+}
+
+/*
+ * Text-only stand-in for Obsidian's renderer: it appends the markdown as text so
+ * widgets that embed content can be asserted on without a real markdown pipeline.
+ */
+const MarkdownRenderer = {
+	async render(app, markdown, el, sourcePath, component) {
+		const div = document.createElement("div");
+		div.className = "markdown-rendered";
+		div.textContent = markdown;
+		el.appendChild(div);
+	},
+};
+
 // ---- workspace / vault / metadata cache ----
 class WorkspaceLeaf {
 	constructor(app, type) {
@@ -133,6 +173,8 @@ class Workspace {
 	constructor() {
 		this.leaves = [];
 		this._viewFactories = {};
+		this._refs = [];
+		this._offrefs = [];
 	}
 	getLeaf(type) {
 		const leaf = new WorkspaceLeaf(this._app, type);
@@ -147,14 +189,26 @@ class Workspace {
 	getActiveViewOfType() {
 		return null;
 	}
-	on() {
-		return {};
+	getActiveFile() {
+		return null;
+	}
+	on(name, cb) {
+		const ref = { name, cb };
+		this._refs.push(ref);
+		return ref;
+	}
+	off(name, cb) {
+		this._offrefs.push({ name, cb });
+	}
+	offref(ref) {
+		this._offrefs.push(ref);
 	}
 }
 
 class Vault {
 	constructor() {
 		this.files = [];
+		this.folders = [];
 		this._listeners = { create: [], modify: [], delete: [] };
 	}
 	on(name, cb) {
@@ -167,11 +221,14 @@ class Vault {
 	getMarkdownFiles() {
 		return this.files.filter((f) => f.extension === "md");
 	}
-	getAbstractFileByPath(p) {
-		return this.files.find((f) => f.path === p) || null;
+	getFiles() {
+		return this.files.slice();
 	}
-	getFolderByPath() {
-		return null;
+	getAbstractFileByPath(p) {
+		return this.files.find((f) => f.path === p) || this.folders.find((f) => f.path === p) || null;
+	}
+	getFolderByPath(p) {
+		return this.folders.find((f) => f.path === p) || null;
 	}
 	async create(path, content) {
 		const f = new TFile(path, content, Date.now(), Date.now());
@@ -179,8 +236,13 @@ class Vault {
 		this._fire("create", f);
 		return f;
 	}
-	async createFolder() {
-		return null;
+	async createFolder(path) {
+		const p = normalizePath(path);
+		if (!p) throw new Error("no folder path given");
+		if (this.folders.some((f) => f.path === p)) throw new Error("folder already exists: " + p);
+		const folder = new TFolder(p);
+		this.folders.push(folder);
+		return folder;
 	}
 	async read(f) {
 		return f._content ?? "";
@@ -238,6 +300,9 @@ class Plugin {
 		return this._data;
 	}
 	async saveData(data) {
+		// Deferred, like the real write: a fire-and-forget save has not landed when
+		// the caller returns, which is what the smoke suite asserts about.
+		await new Promise((resolve) => setTimeout(resolve, 0));
 		this._data = data;
 	}
 }
@@ -257,10 +322,13 @@ class ItemView {
 class Modal {
 	constructor(app) {
 		this.app = app;
-		this.contentEl = document.createElement("div");
-		this.titleEl = document.createElement("div");
-		this.modalEl = document.createElement("div");
 		this.containerEl = document.createElement("div");
+		this.modalEl = document.createElement("div");
+		this.titleEl = document.createElement("div");
+		this.contentEl = document.createElement("div");
+		this.modalEl.appendChild(this.titleEl);
+		this.modalEl.appendChild(this.contentEl);
+		this.containerEl.appendChild(this.modalEl);
 	}
 	open() {
 		document.body.appendChild(this.containerEl);
@@ -280,6 +348,13 @@ class PluginSettingTab {
 		this.containerEl = document.createElement("div");
 	}
 	display() {}
+	getControlValue(key) {
+		return this.plugin.settings[key];
+	}
+	setControlValue(key, value) {
+		this.plugin.settings[key] = value;
+		return this.plugin.saveSettings();
+	}
 }
 
 class Setting {
@@ -375,7 +450,9 @@ class Setting {
 
 module.exports = {
 	App,
+	Component,
 	ItemView,
+	MarkdownRenderer,
 	Modal,
 	Notice,
 	Plugin,
@@ -383,6 +460,7 @@ module.exports = {
 	Setting,
 	WorkspaceLeaf,
 	TFile,
+	TFolder,
 	TAbstractFile,
 	normalizePath,
 	setIcon,

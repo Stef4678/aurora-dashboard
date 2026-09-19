@@ -2,7 +2,7 @@ import { App, ItemView, Modal, Notice, Setting, WorkspaceLeaf, setIcon } from "o
 import type { DashboardPlugin, WidgetCtx, WidgetHandle, WidgetInstance, WidgetSetting, WidgetType } from "./types";
 import { getWidgetTypes, widgetType } from "./registry";
 import { gridRows, hasOverlap, nearestFree, resolveOverlaps } from "./layout";
-import { clamp } from "./utils";
+import { clamp, dateKey } from "./utils";
 
 export const VIEW_TYPE_DASHBOARD = "aurora-dashboard-view";
 
@@ -13,6 +13,10 @@ export class DashboardView extends ItemView {
 	private handles = new Map<string, { dispose?: () => void }>();
 	private cleanups: Array<() => void> = [];
 	private editSnapshot: WidgetInstance[] | null = null;
+	/** Bumped on every render, so a gesture from a detached card cannot commit. */
+	private renderGen = 0;
+	/** The local day the board was last rendered for. */
+	private dayKey = "";
 
 	constructor(leaf: WorkspaceLeaf, plugin: DashboardPlugin) {
 		super(leaf);
@@ -69,9 +73,21 @@ export class DashboardView extends ItemView {
 		contentEl.addClass("dash-view");
 		if (this.plugin.settings.accent) contentEl.style.setProperty("--dash-accent", this.plugin.settings.accent);
 		else contentEl.style.removeProperty("--dash-accent");
-		if (this.plugin.settings.editMode) contentEl.addClass("editing");
+
+		const editing = this.plugin.settings.editMode;
+		if (editing) contentEl.addClass("editing");
 		else contentEl.removeClass("editing");
 
+		// Entering edit mode snapshots the layout, whichever entry point was used —
+		// the pencil button or the "Toggle dashboard edit mode" command — so that
+		// Cancel editing can always put it back.
+		if (editing && !this.editSnapshot) {
+			this.editSnapshot = JSON.parse(JSON.stringify(this.plugin.settings.layout)) as WidgetInstance[];
+		} else if (!editing) {
+			this.editSnapshot = null;
+		}
+
+		this.renderGen++;
 		this.runCleanups();
 		this.disposeAll();
 
@@ -84,6 +100,24 @@ export class DashboardView extends ItemView {
 				this.buildWidgets();
 			});
 		});
+
+		this.watchForNewDay();
+	}
+
+	/**
+	 * A dashboard is meant to be left open, so the board follows the local date.
+	 * Without this the calendar, habits grid, heatmap and Today widget keep
+	 * pointing at yesterday after midnight while the clock rolls over.
+	 */
+	private watchForNewDay(): void {
+		this.dayKey = dateKey(new Date());
+		const timer = window.setInterval(() => {
+			const now = dateKey(new Date());
+			if (now === this.dayKey) return;
+			this.dayKey = now;
+			this.render();
+		}, 1000);
+		this.cleanups.push(() => window.clearInterval(timer));
 	}
 
 	// ---- control center ----
@@ -134,13 +168,7 @@ export class DashboardView extends ItemView {
 		setIcon(editBtn, editing ? "check" : "pencil");
 		editBtn.setAttr("aria-label", editing ? "Done editing" : "Edit layout");
 		editBtn.addEventListener("click", () => {
-			const wasEditing = this.plugin.settings.editMode;
-			if (wasEditing) {
-				this.editSnapshot = null;
-			} else {
-				this.editSnapshot = JSON.parse(JSON.stringify(this.plugin.settings.layout)) as WidgetInstance[];
-			}
-			this.plugin.settings.editMode = !wasEditing;
+			this.plugin.settings.editMode = !this.plugin.settings.editMode;
 			void this.plugin.saveSettings();
 			this.render();
 		});
@@ -203,36 +231,45 @@ export class DashboardView extends ItemView {
 	}
 
 	private buildWidgetHeader(card: HTMLElement, inst: WidgetInstance, type: WidgetType): void {
-		if (type.noHeader) return;
+		const editing = this.plugin.settings.editMode;
+		// A no-header widget (the clock) keeps its bare look while in use, but in
+		// edit mode it still needs a grip and its actions, or it could never be
+		// moved, configured or removed.
+		if (type.noHeader && !editing) return;
 		const header = card.createDiv("dash-widget-header");
 		const grip = header.createDiv("dash-grip");
 		setIcon(grip, "grip-vertical");
-		const icon = header.createDiv("dash-widget-icon");
-		setIcon(icon, type.icon);
-		header.createDiv("dash-widget-title").setText(inst.title || type.name);
-		const collapse = header.createDiv("dash-widget-collapse");
-		setIcon(collapse, inst.collapsed ? "chevron-right" : "chevron-down");
-		collapse.setAttr("aria-label", inst.collapsed ? "Expand widget" : "Collapse widget");
-		collapse.addEventListener("click", () => {
-			inst.collapsed = !inst.collapsed;
-			void this.plugin.saveSettings();
-			this.render();
-		});
-		const actions = header.createDiv("dash-widget-actions");
-		if (this.plugin.settings.editMode) {
-			const gear = actions.createDiv("dash-btn");
-			setIcon(gear, "settings-2");
-			gear.setAttr("aria-label", "Widget settings");
-			gear.addEventListener("click", () => this.openWidgetSettings(inst));
-			const del = actions.createDiv("dash-btn dash-btn-danger");
-			setIcon(del, "x");
-			del.setAttr("aria-label", "Remove widget");
-			del.addEventListener("click", () => {
-				this.plugin.settings.layout = this.plugin.settings.layout.filter((i) => i.uid !== inst.uid);
+
+		if (!type.noHeader) {
+			const icon = header.createDiv("dash-widget-icon");
+			setIcon(icon, type.icon);
+			header.createDiv("dash-widget-title").setText(inst.title || type.name);
+			const collapse = header.createDiv("dash-widget-collapse");
+			setIcon(collapse, inst.collapsed ? "chevron-right" : "chevron-down");
+			collapse.setAttr("aria-label", inst.collapsed ? "Expand widget" : "Collapse widget");
+			collapse.addEventListener("click", () => {
+				inst.collapsed = !inst.collapsed;
+				// Expanding needs the room back that collapsing freed.
+				if (!inst.collapsed) resolveOverlaps(this.plugin.settings.layout, this.plugin.settings.columns);
 				void this.plugin.saveSettings();
 				this.render();
 			});
 		}
+
+		const actions = header.createDiv("dash-widget-actions");
+		if (!editing) return;
+		const gear = actions.createDiv("dash-btn");
+		setIcon(gear, "settings-2");
+		gear.setAttr("aria-label", "Widget settings");
+		gear.addEventListener("click", () => this.openWidgetSettings(inst));
+		const del = actions.createDiv("dash-btn dash-btn-danger");
+		setIcon(del, "x");
+		del.setAttr("aria-label", "Remove widget");
+		del.addEventListener("click", () => {
+			this.plugin.settings.layout = this.plugin.settings.layout.filter((i) => i.uid !== inst.uid);
+			void this.plugin.saveSettings();
+			this.render();
+		});
 	}
 
 	private renderWidgetBody(body: HTMLElement, inst: WidgetInstance): void {
@@ -246,11 +283,15 @@ export class DashboardView extends ItemView {
 		}
 		while (body.firstChild) body.removeChild(body.firstChild);
 
+		// A widget can hand its cleanups over while it renders, so a widget that
+		// throws after subscribing still releases what it took.
+		const disposers: Array<() => void> = [];
 		const ctx: WidgetCtx = {
 			plugin: this.plugin,
 			inst,
 			body,
 			refresh: () => this.refreshWidget(inst.uid),
+			onDispose: (fn) => disposers.push(fn),
 		};
 		let handle: WidgetHandle = {};
 		try {
@@ -259,7 +300,18 @@ export class DashboardView extends ItemView {
 			console.error("Dashboard widget failed to render:", inst.type, e);
 			body.createDiv("dash-widget-error").setText("This widget hit a snag — try again.");
 		}
-		this.handles.set(inst.uid, { dispose: handle.dispose });
+		this.handles.set(inst.uid, {
+			dispose: () => {
+				for (const fn of disposers.splice(0)) {
+					try {
+						fn();
+					} catch {
+						/* noop */
+					}
+				}
+				handle.dispose?.();
+			},
+		});
 	}
 
 	refreshWidget(uid: string): void {
@@ -271,7 +323,7 @@ export class DashboardView extends ItemView {
 	}
 
 	refreshActivityWidgets(): void {
-		for (const t of ["activity", "stats", "tasks", "calendar", "recent", "vaulttasks", "popular", "orphans", "backlinks"]) this.refreshAllOfType(t);
+		for (const t of ["activity", "stats", "tasks", "calendar", "recent", "vaulttasks", "popular", "orphans", "backlinks", "embed"]) this.refreshAllOfType(t);
 	}
 
 	private refreshAllOfType(type: string): void {
@@ -286,25 +338,36 @@ export class DashboardView extends ItemView {
 
 	// ---- drag & drop ----
 
-	private cellAt(clientX: number, clientY: number): { x: number; y: number } {
+	/**
+	 * The number of columns the stylesheet is actually showing: below the 720 px
+	 * breakpoint the grid collapses to one track, so the gesture maths has to
+	 * follow or the preview and the committed position describe different boards.
+	 */
+	private effColumns(): number {
+		const width = this.gridEl ? this.gridEl.getBoundingClientRect().width : 0;
+		return width > 0 && width < 720 ? 1 : this.plugin.settings.columns;
+	}
+
+	private cellAt(clientX: number, clientY: number): { x: number; y: number; cols: number } {
 		const s = this.plugin.settings;
+		const cols = this.effColumns();
 		const rect = this.gridEl.getBoundingClientRect();
-		const cw = (rect.width - s.gap * (s.columns - 1)) / s.columns;
-		const x = clamp(Math.floor((clientX - rect.left) / (cw + s.gap)), 0, s.columns - 1);
+		const cw = (rect.width - s.gap * (cols - 1)) / cols;
+		const x = clamp(Math.floor((clientX - rect.left) / (cw + s.gap)), 0, cols - 1);
 		const y = clamp(
 			Math.floor((clientY - rect.top) / (s.rowHeight + s.gap)),
 			0,
-			Math.max(gridRows(this.plugin.settings.layout) - 1, 0)
+			Math.max(gridRows(s.layout) - 1, 0)
 		);
-		return { x, y };
+		return { x, y, cols };
 	}
 
-	private showDropTarget(x: number, y: number): void {
+	private showDropTarget(cell: { x: number; y: number; cols: number }): void {
 		const s = this.plugin.settings;
 		const rect = this.gridEl.getBoundingClientRect();
-		const cw = (rect.width - s.gap * (s.columns - 1)) / s.columns;
-		this.dropTarget.style.left = x * (cw + s.gap) + "px";
-		this.dropTarget.style.top = y * (s.rowHeight + s.gap) + "px";
+		const cw = (rect.width - s.gap * (cell.cols - 1)) / cell.cols;
+		this.dropTarget.style.left = cell.x * (cw + s.gap) + "px";
+		this.dropTarget.style.top = cell.y * (s.rowHeight + s.gap) + "px";
 		this.dropTarget.style.width = cw + "px";
 		this.dropTarget.style.height = s.rowHeight + "px";
 		this.dropTarget.addClass("is-visible");
@@ -314,50 +377,91 @@ export class DashboardView extends ItemView {
 		this.dropTarget.removeClass("is-visible");
 	}
 
+	/**
+	 * Wire one pointer gesture so it always tears down: on release, on
+	 * `pointercancel` (what a touch device fires when it claims the gesture for
+	 * panning) and when the view re-renders or closes mid-gesture. `settle` is
+	 * called exactly once, with `commit: false` for every path but a real release.
+	 */
+	private beginGesture(
+		down: PointerEvent,
+		move: (ev: PointerEvent) => void,
+		settle: (commit: boolean) => void
+	): void {
+		down.preventDefault();
+		down.stopPropagation();
+		let done = false;
+		const detach = (): void => {
+			document.removeEventListener("pointermove", move);
+			document.removeEventListener("pointerup", onUp);
+			document.removeEventListener("pointercancel", onCancel);
+		};
+		const onUp = (): void => {
+			if (done) return;
+			done = true;
+			detach();
+			settle(true);
+		};
+		const onCancel = (): void => {
+			if (done) return;
+			done = true;
+			detach();
+			settle(false);
+		};
+		document.addEventListener("pointermove", move);
+		document.addEventListener("pointerup", onUp);
+		document.addEventListener("pointercancel", onCancel);
+		this.cleanups.push(onCancel);
+	}
+
 	private enableDrag(card: HTMLElement, inst: WidgetInstance): void {
 		const grip = card.querySelector<HTMLElement>(".dash-grip");
 		if (!grip) return;
 		grip.addEventListener("pointerdown", (e) => {
-			e.preventDefault();
-			e.stopPropagation();
+			const startX = e.clientX;
+			const startY = e.clientY;
+			let lastX = startX;
+			let lastY = startY;
+			const gen = this.renderGen;
 			card.addClass("is-dragging");
-			const drag = {
-				inst,
-				card,
-				startX: e.clientX,
-				startY: e.clientY,
-				lastX: e.clientX,
-				lastY: e.clientY,
-			};
-
-			const onMove = (ev: PointerEvent): void => {
-				drag.lastX = ev.clientX;
-				drag.lastY = ev.clientY;
-				card.style.transform = `translate3d(${ev.clientX - drag.startX}px, ${ev.clientY - drag.startY}px, 0) scale(1.03)`;
-				const cell = this.cellAt(ev.clientX, ev.clientY);
-				this.showDropTarget(cell.x, cell.y);
-			};
-			const onUp = (): void => {
-				document.removeEventListener("pointermove", onMove);
-				document.removeEventListener("pointerup", onUp);
-				card.removeClass("is-dragging");
-				card.style.removeProperty("transform");
-				this.hideDropTarget();
-				const cell = this.cellAt(drag.lastX, drag.lastY);
-				this.placeInstance(inst, cell.x, cell.y);
-			};
-
-			document.addEventListener("pointermove", onMove);
-			document.addEventListener("pointerup", onUp);
+			this.beginGesture(
+				e,
+				(ev) => {
+					lastX = ev.clientX;
+					lastY = ev.clientY;
+					card.style.transform = `translate3d(${ev.clientX - startX}px, ${ev.clientY - startY}px, 0) scale(1.03)`;
+					this.showDropTarget(this.cellAt(ev.clientX, ev.clientY));
+				},
+				(commit) => {
+					card.removeClass("is-dragging");
+					card.style.removeProperty("transform");
+					this.hideDropTarget();
+					// A gesture only lands while the user is still editing the same board.
+					if (!commit || gen !== this.renderGen || !this.plugin.settings.editMode) return;
+					const cell = this.cellAt(lastX, lastY);
+					this.placeInstance(inst, cell.x, cell.y, cell.cols);
+				}
+			);
 		});
 	}
 
-	private placeInstance(inst: WidgetInstance, col: number, row: number): void {
+	private placeInstance(inst: WidgetInstance, col: number, row: number, cols: number): void {
 		const s = this.plugin.settings;
 		const layout = s.layout;
-		col = clamp(col, 0, s.columns - 1);
 		row = Math.max(row, 0);
 
+		if (cols <= 1) {
+			// Single-column breakpoint: only the row is meaningful, and widgets keep
+			// their width for when the window is wide enough to show it again.
+			inst.x = 0;
+			inst.y = row;
+			resolveOverlaps(layout, s.columns);
+			void this.plugin.saveSettings();
+			this.render();
+			return;
+		}
+
+		col = clamp(col, 0, cols - 1);
 		const occupant = layout.find((i) => i.uid !== inst.uid && i.x === col && i.y === row);
 
 		if (occupant) {
@@ -372,12 +476,12 @@ export class DashboardView extends ItemView {
 				inst.y = oldY;
 				occupant.x = col;
 				occupant.y = row;
-				const free = nearestFree(layout, inst, col, row, s.columns);
+				const free = nearestFree(layout, inst, col, row, cols);
 				inst.x = free.x;
 				inst.y = free.y;
 			}
 		} else {
-			const free = nearestFree(layout, inst, col, row, s.columns);
+			const free = nearestFree(layout, inst, col, row, cols);
 			inst.x = free.x;
 			inst.y = free.y;
 		}
@@ -394,34 +498,33 @@ export class DashboardView extends ItemView {
 		const maxH = type?.max?.h ?? 8;
 		const handle = card.createDiv("dash-resize");
 		handle.addEventListener("pointerdown", (e) => {
-			e.preventDefault();
-			e.stopPropagation();
 			const s = this.plugin.settings;
+			const cols = this.effColumns();
 			const rect = this.gridEl.getBoundingClientRect();
-			const cw = (rect.width - s.gap * (s.columns - 1)) / s.columns;
+			const cw = (rect.width - s.gap * (cols - 1)) / cols;
 			const ch = s.rowHeight;
 			const startW = inst.w;
 			const startH = inst.h;
 			const sx = e.clientX;
 			const sy = e.clientY;
+			const gen = this.renderGen;
 
-			const onMove = (ev: PointerEvent): void => {
-				const dCols = Math.round((ev.clientX - sx) / (cw + s.gap));
-				const dRows = Math.round((ev.clientY - sy) / (ch + s.gap));
-				inst.w = clamp(startW + dCols, min.w, Math.min(maxW, s.columns - inst.x));
-				inst.h = clamp(startH + dRows, min.h, maxH);
-				this.position(card, inst);
-			};
-			const onUp = (): void => {
-				document.removeEventListener("pointermove", onMove);
-				document.removeEventListener("pointerup", onUp);
-				resolveOverlaps(this.plugin.settings.layout, this.plugin.settings.columns);
-				void this.plugin.saveSettings();
-				this.render();
-			};
-
-			document.addEventListener("pointermove", onMove);
-			document.addEventListener("pointerup", onUp);
+			this.beginGesture(
+				e,
+				(ev) => {
+					const dCols = Math.round((ev.clientX - sx) / (cw + s.gap));
+					const dRows = Math.round((ev.clientY - sy) / (ch + s.gap));
+					inst.w = clamp(startW + dCols, min.w, Math.min(maxW, cols - inst.x));
+					inst.h = clamp(startH + dRows, min.h, maxH);
+					this.position(card, inst);
+				},
+				(commit) => {
+					if (!commit || gen !== this.renderGen || !this.plugin.settings.editMode) return;
+					resolveOverlaps(this.plugin.settings.layout, this.plugin.settings.columns);
+					void this.plugin.saveSettings();
+					this.render();
+				}
+			);
 		});
 	}
 
@@ -538,8 +641,12 @@ class WidgetSettingsModal extends Modal {
 				tb.inputEl.type = "number";
 				tb.setValue(String(this.inst.settings[cfg.key] ?? ""));
 				tb.onChange((v) => {
+					// An emptied or unparsable field must leave the stored value alone
+					// instead of silently rewriting it to the minimum.
+					if (!v.trim()) return;
 					const n = parseFloat(v);
-					let val = Number.isFinite(n) ? n : (cfg.min ?? 0);
+					if (!Number.isFinite(n)) return;
+					let val = n;
 					if (cfg.min !== undefined) val = Math.max(cfg.min, val);
 					if (cfg.max !== undefined) val = Math.min(cfg.max, val);
 					this.inst.settings[cfg.key] = val;

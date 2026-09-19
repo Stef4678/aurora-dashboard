@@ -13,6 +13,7 @@ A polished, interactive dashboard and control center for [Obsidian](https://obsi
 - **Activity tracking** — a GitHub-style heatmap of your note edits, with streaks, weekly, and lifetime totals
 - **Daily note integration** — the calendar and Today widgets open, create, and manage your daily notes
 - **Vault-wide tasks** — every open task from every note, grouped by source; click to jump, tick to complete
+- **Embed anything** — a note, today's daily note, a `.base`, a Dataview query, a diagram, or markdown you type, rendered right on the dashboard
 - **Quick capture** — send a thought to your inbox file or today's note in one keystroke
 - **Quick actions launcher** — configurable buttons that run Obsidian commands, open notes, run searches, or insert notes from templates
 - **Link insights** — see which notes are most-linked, which are orphans, and what links to your current note
@@ -31,7 +32,7 @@ A polished, interactive dashboard and control center for [Obsidian](https://obsi
 | **Recent** | Notes you touched recently, click to open |
 | **Tags** | Your most-used tags, click to run a vault search |
 | **Today** | Checkboxes from today's daily note — check them off or add new tasks inline |
-| **All tasks** | Every open task across your vault, grouped by note; click a task to jump to it, tick the box to complete it inline |
+| **All tasks** | Every open checkbox task across your vault (any list marker), grouped by note; click a task to jump to it, tick the box to complete it inline |
 | **Quick capture** | A textarea that appends to your inbox file or today's note |
 | **Search** | Global vault search right from the dashboard |
 | **Pomodoro** | A focus timer with an animated ring; configurable focus/break lengths |
@@ -46,6 +47,7 @@ A polished, interactive dashboard and control center for [Obsidian](https://obsi
 | **Progress** | How much of the day, month, and year has passed, as animated rings |
 | **Daily streak** | Consecutive days you've written a daily note, plus your best run |
 | **Habits** | Track daily habits on a rolling grid — check off any of the last few days, with today and current-streak chips |
+| **Embed** | Render a note, today's daily note, or markdown you write — Bases, Dataview queries, Mermaid diagrams and `![[embeds]]` all render through Obsidian itself |
 
 ## Installation
 
@@ -56,13 +58,17 @@ The plugin isn't on the community plugin list yet. To use it:
 3. Restart Obsidian, then enable **Aurora Dashboard** under *Settings → Community plugins*.
 4. Open it from the ribbon icon, or with `Ctrl/Cmd + Shift + D`.
 
+The plugin is not desktop-only: the dashboard renders as a single column on narrow screens and in edit mode the grip and the resize corner work with touch, so you can rearrange widgets on a phone or tablet with a mouse-free gesture. Install it on mobile the same way as any other plugin (community plugin list, or copy the folder into your vault).
+
 ## Usage
 
 - **Open the dashboard** — ribbon icon, `Ctrl/Cmd + Shift + D`, or the command palette.
-- **Edit the layout** — click the pencil button in the dashboard's control bar (or run *Toggle dashboard edit mode*). Drag widgets by their grip, resize from the corner, use the gear for per-widget settings, the ✕ to remove, and the **+** to add new widgets.
-- **Work your tasks** — the **Today** widget manages today's daily-note checklist; the **All tasks** widget lists every open `- [ ]` in your vault (grouped by note). Click a task to jump to it in its note; tick the box to toggle it.
+- **Edit the layout** — click the pencil button in the dashboard's control bar (or run *Toggle dashboard edit mode*). Drag widgets by their grip, resize from the corner, use the gear for per-widget settings, the ✕ to remove, and the **+** to add new widgets. **Cancel editing** puts the layout back the way it was.
+- **Leave it open** — the board follows the calendar on its own: at midnight the calendar, habits grid, heatmap and Today widget roll over to the new day without a reload.
+- **Work your tasks** — the **Today** widget manages today's daily-note checklist; the **All tasks** widget lists every open checkbox task in your vault (any list marker; checkboxes inside code blocks are left alone). Click a task to jump to it in its note; tick the box to toggle it.
 - **Configure launchers** — **Quick actions** and **Pinned** have their own editors (edit mode → gear): add, reorder, and remove actions or pinned notes.
 - **Track habits** — the **Habits** widget's editor (edit mode → gear) names the habits you want to track and how many trailing days to show; click a square to mark that habit done for that day.
+- **Embed your own content** — the **Embed** widget (edit mode → gear) shows a note by path, follows today's daily note, or renders markdown you paste in. Non-markdown files are transcluded, so a `.base`, an image or a canvas renders natively; long content scrolls or clips.
 - **Explore your links** — the **Backlinks** widget follows the note you have open; **Popular notes** and **Orphan notes** rank your vault's connectivity.
 - **Quick capture** — the *Capture to inbox* command, the send button in the control bar, or the Quick capture widget.
 - **Search** — the search button in the control bar, or the Search widget.
@@ -74,7 +80,7 @@ All options live under *Settings → Aurora Dashboard*:
 - **Layout** — columns, row height, gap, edit mode, reset layout
 - **Appearance** — accent color with a picker and one-click presets
 - **Activity** — toggle note-edit tracking and clear collected data
-- **Daily notes** — folder and filename format (tokens: `YYYY`, `YY`, `MMM`, `MM`, `DD`, `ddd`)
+- **Daily notes** — folder and filename format (tokens: `YYYY`, `YY`, `MMMM`, `MMM`, `MM`, `DD`, `dd`, `dddd`, `ddd`). A format may include folders, e.g. `YYYY/MM/DD`; missing folders are created for you.
 - **Capture** — target (inbox file vs today's note), folder, and inbox filename
 - **Pomodoro** — default focus/break lengths used by new Pomodoro widgets
 

@@ -59,13 +59,14 @@ export const backlinksType: WidgetType = {
 		const onMeta = (): void => ctx.refresh();
 		app.workspace.on("active-leaf-change", onLeaf);
 		app.metadataCache?.on?.("changed", onMeta);
+		// Registered through the context, so the subscriptions are released even if
+		// something below throws before render returns.
+		ctx.onDispose?.(() => {
+			app.workspace.off?.("active-leaf-change", onLeaf);
+			app.metadataCache?.off?.("changed", onMeta);
+		});
 
-		return {
-			dispose: () => {
-				app.workspace.off?.("active-leaf-change", onLeaf);
-				app.metadataCache?.off?.("changed", onMeta);
-			},
-		};
+		return {};
 	},
 };
 

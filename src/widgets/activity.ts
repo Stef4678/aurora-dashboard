@@ -48,7 +48,9 @@ export const activityType: WidgetType = {
 			for (const day of colDays) {
 				const key = dateKey(day);
 				const count = day <= today ? activity[key] ?? 0 : 0;
-				const level = count === 0 ? 0 : 1 + Math.round(((count - 1) / (maxCount - 1)) * 3);
+				// A single-edit day is the busiest day there is: without the guard the
+				// ratio is 0/0 and the only active square renders as empty ("NaN").
+				const level = count === 0 ? 0 : maxCount <= 1 ? 4 : 1 + Math.round(((count - 1) / (maxCount - 1)) * 3);
 				const cell = wEl.createDiv("dash-hm-cell");
 				cell.setAttr("data-lvl", String(level));
 				cell.setAttr("title", `${key} · ${count} edit${count === 1 ? "" : "s"}`);

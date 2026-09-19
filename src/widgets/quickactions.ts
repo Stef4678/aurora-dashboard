@@ -117,13 +117,17 @@ async function dispatch(plugin: DashboardPlugin, a: QuickAction): Promise<void> 
 			try {
 				const content = await app.vault.read(tpl);
 				const d = new Date();
-				const stamp = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())} ${pad2(
+				const stamp = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}-${pad2(
 					d.getHours()
-				)}${pad2(d.getMinutes())}`;
-				const name = stamp.replace(/ /g, "-") + ".md";
+				)}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`;
 				const slash = tpl.path.lastIndexOf("/");
 				const dir = slash > 0 ? tpl.path.slice(0, slash) : "";
-				const newPath = normalizePath(dir ? dir + "/" + name : name);
+				// Minute resolution used to make the second click in a minute fail;
+				// keep numbering on the off-chance two land in the same second.
+				let newPath = normalizePath(dir ? `${dir}/${stamp}.md` : `${stamp}.md`);
+				for (let n = 2; app.vault.getAbstractFileByPath(newPath); n++) {
+					newPath = normalizePath(dir ? `${dir}/${stamp}-${n}.md` : `${stamp}-${n}.md`);
+				}
 				const f = await app.vault.create(newPath, content);
 				plugin.openFile(f);
 				new Notice("Created " + f.basename);

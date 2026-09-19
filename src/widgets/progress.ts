@@ -54,13 +54,18 @@ export const progressType: WidgetType = {
 		const update = (): void => {
 			const now = new Date();
 			const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-			dayRing((now.getTime() - startOfDay.getTime()) / MS_PER_DAY);
+			// Measured against tomorrow's midnight, so a 23- or 25-hour DST day
+			// still shows a full ring.
+			const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+			dayRing((now.getTime() - startOfDay.getTime()) / (endOfDay.getTime() - startOfDay.getTime()));
 
 			const dim = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
 			monthRing(now.getDate() / dim);
 
 			const startOfYear = new Date(now.getFullYear(), 0, 1);
-			const doy = Math.floor((now.getTime() - startOfYear.getTime()) / MS_PER_DAY) + 1;
+			// Midnight to midnight, rounded: dividing raw elapsed ms rounds down one
+			// day too many for the first hour after a DST shift.
+			const doy = Math.round((startOfDay.getTime() - startOfYear.getTime()) / MS_PER_DAY) + 1;
 			const daysInYear = isLeap(now.getFullYear()) ? 366 : 365;
 			yearRing(doy / daysInYear);
 		};

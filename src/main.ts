@@ -4,15 +4,33 @@ import { DashboardView, VIEW_TYPE_DASHBOARD } from "./view";
 import type { DashboardPlugin, Settings, WidgetInstance } from "./types";
 import { DEFAULT_SETTINGS } from "./types";
 import { widgetType } from "./registry";
-import { defaultLayout, findFirstFree } from "./layout";
+import { clampLayout, defaultLayout, findFirstFree } from "./layout";
 import { dateKey as dk, formatDate as fmtDate, uid } from "./utils";
+
+/** Vault writes are coalesced into a single widget refresh this far apart. */
+const REFRESH_DELAY = 500;
+/** Shown when the theme exposes no usable accent colour. */
+const DEFAULT_ACCENT = "#7c3aed";
 
 export default class AuroraDashboardPlugin extends Plugin implements DashboardPlugin {
 	settings: Settings;
 	private saveTimer: number | null = null;
+	private refreshTimer: number | null = null;
 
 	async onload(): Promise<void> {
-		await this.loadSettings();
+		try {
+			await this.loadSettings();
+		} catch (e) {
+			// A hand-edited or corrupt data.json must never make the plugin
+			// unloadable: fall back to defaults so the view, ribbon icon,
+			// commands and settings tab still register.
+			console.error("Aurora Dashboard: settings could not be loaded, using defaults.", e);
+			this.settings = Object.assign({}, DEFAULT_SETTINGS, {
+				layout: defaultLayout(),
+				orphans: [],
+				activity: {},
+			});
+		}
 
 		this.registerView(VIEW_TYPE_DASHBOARD, (leaf) => new DashboardView(leaf, this));
 
@@ -21,6 +39,7 @@ export default class AuroraDashboardPlugin extends Plugin implements DashboardPl
 		this.addCommand({
 			id: "open-dashboard",
 			name: "Open dashboard",
+			hotkeys: [{ modifiers: ["Mod", "Shift"], key: "d" }],
 			callback: () => void this.activateView(),
 		});
 		this.addCommand({
@@ -40,23 +59,95 @@ export default class AuroraDashboardPlugin extends Plugin implements DashboardPl
 		this.registerEvent(this.app.vault.on("modify", (f) => this.onFileActivity(f)));
 	}
 
+	onunload(): void {
+		// Flush instead of dropping the newest activity counts, and make sure a
+		// dead instance can never write its stale snapshot over a fresh one.
+		if (this.saveTimer !== null) {
+			window.clearTimeout(this.saveTimer);
+			this.saveTimer = null;
+		}
+		if (this.refreshTimer !== null) {
+			window.clearTimeout(this.refreshTimer);
+			this.refreshTimer = null;
+		}
+		void this.saveSettings();
+	}
+
 	// ---- data ----
 
 	async loadSettings(): Promise<void> {
 		const raw = (await this.loadData()) as Partial<Settings> | null;
+		// An explicitly stored layout is respected even when it is empty: removing
+		// every widget is a user decision, not an uninitialised file.
+		const hadLayout = isPlainObject(raw) && Array.isArray(raw.layout);
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, raw ?? {});
-		if (!Array.isArray(this.settings.layout) || this.settings.layout.length === 0) {
-			this.settings.layout = defaultLayout();
+
+		// Scalars: a hand-edited or sync-damaged file must not be able to inject
+		// invalid CSS or break the grid arithmetic.
+		const s = this.settings;
+		s.columns = numOr(s.columns, 12, 8, 16);
+		s.rowHeight = numOr(s.rowHeight, 88, 60, 140);
+		s.gap = numOr(s.gap, 14, 8, 28);
+		s.accent = strOr(s.accent, "");
+		s.dailyNoteFolder = strOr(s.dailyNoteFolder, "");
+		s.dailyNoteFormat = strOr(s.dailyNoteFormat, DEFAULT_SETTINGS.dailyNoteFormat);
+		s.captureFolder = strOr(s.captureFolder, "");
+		s.inboxFile = strOr(s.inboxFile, DEFAULT_SETTINGS.inboxFile);
+		s.captureTarget = s.captureTarget === "daily" ? "daily" : "inbox";
+		s.pomodoroFocus = numOr(s.pomodoroFocus, 25, 1, 120);
+		s.pomodoroBreak = numOr(s.pomodoroBreak, 5, 1, 60);
+		s.trackActivity = s.trackActivity !== false;
+		s.editMode = s.editMode === true;
+		// A non-numeric version must still run the migrations below.
+		s.version = numOr(s.version, 0, 0, 1000);
+
+		// Activity: a fresh map holding only positive finite numbers, never the
+		// shared DEFAULT_SETTINGS object.
+		const activity: Record<string, number> = {};
+		if (isPlainObject(s.activity)) {
+			for (const [day, count] of Object.entries(s.activity)) {
+				const n = Number(count);
+				if (Number.isFinite(n) && n > 0) activity[day] = Math.round(n);
+			}
 		}
-		this.settings.activity = this.settings.activity ?? {};
-		this.settings.layout = this.settings.layout
-			.filter((i) => widgetType(i.type))
-			.map((inst) => {
-				const t = widgetType(inst.type);
-				if (!inst.uid) inst.uid = uid();
-				if (t?.defaultSettings) inst.settings = Object.assign({}, t.defaultSettings, inst.settings ?? {});
-				return inst;
-			});
+		s.activity = activity;
+
+		if (!Array.isArray(s.layout) || (s.layout.length === 0 && !hadLayout)) {
+			s.layout = defaultLayout(s.columns);
+		}
+		s.orphans = Array.isArray(s.orphans) ? s.orphans : [];
+
+		// Every entry is re-validated before use: a single malformed entry used to
+		// throw out of onload() and leave the plugin permanently unloadable.
+		const seen = new Set<string>();
+		const kept: WidgetInstance[] = [];
+		const quarantined: WidgetInstance[] = [];
+		for (const entry of s.layout) {
+			if (!isWidgetInstance(entry)) continue;
+			if (this.adoptInstance(entry, seen)) kept.push(entry);
+			else quarantined.push(entry);
+		}
+
+		// Widgets set aside by an earlier load come back once their type exists again.
+		const stillQuarantined: WidgetInstance[] = [...quarantined];
+		for (const entry of s.orphans) {
+			if (!isWidgetInstance(entry)) continue;
+			if (this.adoptInstance(entry, seen)) kept.push(entry);
+			else stillQuarantined.push(entry);
+		}
+
+		s.layout = kept;
+		s.orphans = stillQuarantined;
+		if (stillQuarantined.length) {
+			new Notice(
+				`Aurora Dashboard: ${stillQuarantined.length} widget${
+					stillQuarantined.length === 1 ? "" : "s"
+				} kept aside — unknown type for this version.`
+			);
+		}
+
+		// Persisted geometry is repaired on load, never rendered outside the grid.
+		if (clampLayout(s.layout, s.columns)) await this.saveSettings();
 
 		// v2: the Habits widget is part of the dashboard by default. Add it to
 		// existing layouts (once) so everyone gets it without a manual step.
@@ -76,8 +167,24 @@ export default class AuroraDashboardPlugin extends Plugin implements DashboardPl
 				});
 			}
 			this.settings.version = 2;
-			void this.saveSettings();
+			await this.saveSettings();
 		}
+	}
+
+	/**
+	 * Prepare a persisted instance for use. Returns false when its widget type is
+	 * not registered in this build — the caller keeps it instead of dropping it.
+	 */
+	private adoptInstance(inst: WidgetInstance, seen: Set<string>): boolean {
+		const t = widgetType(inst.type);
+		if (!t) return false;
+		// A uid is a widget's only identity: duplicates make two cards inseparable
+		// (one stops refreshing, and ✕ removes both), so repair them on load.
+		if (!inst.uid || seen.has(inst.uid)) inst.uid = uid();
+		seen.add(inst.uid);
+		const saved = isPlainObject(inst.settings) ? inst.settings : {};
+		inst.settings = t.defaultSettings ? Object.assign({}, t.defaultSettings, saved) : saved;
+		return true;
 	}
 
 	async saveSettings(): Promise<void> {
@@ -133,10 +240,15 @@ export default class AuroraDashboardPlugin extends Plugin implements DashboardPl
 			return;
 		}
 		try {
+			// The folder is usually the part that is missing, so create the whole
+			// chain before writing the note.
+			await this.ensureFolder(parentOf(path));
+			this.markSelfWrite(path);
 			const f = await this.app.vault.create(path, "");
 			await this.app.workspace.getLeaf(false).openFile(f);
-		} catch {
-			new Notice("Could not create the note for that day.");
+		} catch (e) {
+			console.error("Aurora Dashboard: could not create the daily note.", path, e);
+			new Notice("Could not create " + path + " — is the folder there?");
 		}
 	}
 
@@ -152,8 +264,10 @@ export default class AuroraDashboardPlugin extends Plugin implements DashboardPl
 	}
 
 	dailyNotePath(d: Date): string {
-		const name = this.formatDate(d, this.settings.dailyNoteFormat);
 		const folder = this.settings.dailyNoteFolder.trim();
+		let name = this.formatDate(d, this.settings.dailyNoteFormat).trim();
+		// A blank format would otherwise resolve to a hidden "Daily/.md".
+		if (!name) name = this.formatDate(d, DEFAULT_SETTINGS.dailyNoteFormat);
 		return normalizePath(folder ? folder + "/" + name + ".md" : name + ".md");
 	}
 
@@ -163,17 +277,51 @@ export default class AuroraDashboardPlugin extends Plugin implements DashboardPl
 
 	// ---- activity tracking ----
 
+	/**
+	 * Writing a note is not editing it: opening an empty daily note or capturing a
+	 * thought must not inflate the heatmap, so the plugin recognises its own writes.
+	 * Path-keyed with a short window, because the vault event may arrive after the
+	 * awaited write resolves.
+	 */
+	private selfWrites = new Map<string, number>();
+
+	private markSelfWrite(path: string): void {
+		this.selfWrites.set(path, Date.now());
+	}
+
+	private takeSelfWrite(path: string): boolean {
+		const at = this.selfWrites.get(path);
+		if (at === undefined) return false;
+		this.selfWrites.delete(path);
+		return Date.now() - at < 5000;
+	}
+
 	private onFileActivity(file: unknown): void {
-		if (this.settings.trackActivity && file instanceof TFile && file.extension === "md") {
-			this.recordActivity();
-		}
+		if (!this.settings.trackActivity) return;
+		if (!(file instanceof TFile) || file.extension !== "md") return;
+		if (this.takeSelfWrite(file.path)) return;
+		this.recordActivity();
 	}
 
 	recordActivity(): void {
 		const key = dk(new Date());
 		this.settings.activity[key] = (this.settings.activity[key] ?? 0) + 1;
 		this.queueSave();
-		this.refreshActivityWidgets();
+		this.queueWidgetRefresh();
+	}
+
+	/**
+	 * One vault write lands here; an editing session fires dozens of them.
+	 * Coalesce them into a single refresh, and skip the work entirely when no
+	 * dashboard is open to show it.
+	 */
+	private queueWidgetRefresh(): void {
+		if (this.refreshTimer !== null) return;
+		if (!this.app.workspace.getLeavesOfType(VIEW_TYPE_DASHBOARD).length) return;
+		this.refreshTimer = window.setTimeout(() => {
+			this.refreshTimer = null;
+			this.refreshActivityWidgets();
+		}, REFRESH_DELAY);
 	}
 
 	refreshActivityWidgets(): void {
@@ -192,28 +340,42 @@ export default class AuroraDashboardPlugin extends Plugin implements DashboardPl
 
 	async captureText(text: string): Promise<void> {
 		const s = this.settings;
-		if (s.captureTarget === "inbox") {
-			const dir = normalizePath(s.captureFolder.trim());
-			await this.ensureFolder(dir);
-			const path = normalizePath((dir ? dir + "/" : "") + s.inboxFile);
-			await this.appendTo(path, text);
-		} else {
-			const path = this.dailyNotePath(new Date());
-			const slash = path.lastIndexOf("/");
-			const dir = slash > 0 ? path.slice(0, slash) : "";
-			await this.ensureFolder(dir);
-			await this.appendTo(path, `### ${new Date().toLocaleTimeString()}\n${text}`);
+		try {
+			if (s.captureTarget === "inbox") {
+				const dir = normalizePath(s.captureFolder.trim());
+				await this.ensureFolder(dir);
+				const path = normalizePath((dir ? dir + "/" : "") + inboxFileName(s.inboxFile));
+				await this.appendTo(path, text);
+			} else {
+				const path = this.dailyNotePath(new Date());
+				await this.ensureFolder(parentOf(path));
+				await this.appendTo(path, `### ${new Date().toLocaleTimeString()}\n${text}`);
+			}
+		} catch (e) {
+			console.error("Aurora Dashboard: capture failed.", e);
+			new Notice("Could not save that capture — see the developer console.");
+			throw e; // callers keep the user's text on screen
 		}
 		new Notice("Captured");
 	}
 
+	/** Create every missing folder in `dir`, including intermediate ones. */
 	private async ensureFolder(dir: string): Promise<void> {
-		if (!dir) return;
-		if (this.app.vault.getAbstractFileByPath(dir)) return;
-		try {
-			await this.app.vault.createFolder(dir);
-		} catch {
-			/* folder may have appeared already */
+		const norm = normalizePath(dir.trim());
+		if (!norm || norm === "." || norm === "/") return;
+		let current = "";
+		for (const part of norm.split("/").filter(Boolean)) {
+			current = current ? current + "/" + part : part;
+			if (this.app.vault.getAbstractFileByPath(current)) continue;
+			try {
+				await this.app.vault.createFolder(current);
+			} catch (e) {
+				// Tolerate a folder that appeared meanwhile; surface anything else.
+				if (!this.app.vault.getAbstractFileByPath(current)) {
+					console.error("Aurora Dashboard: could not create folder", current, e);
+					throw e;
+				}
+			}
 		}
 	}
 
@@ -222,8 +384,10 @@ export default class AuroraDashboardPlugin extends Plugin implements DashboardPl
 		if (existing instanceof TFile) {
 			const cur: string = await this.app.vault.read(existing);
 			const next = cur.replace(/\s+$/, "") + "\n\n" + text;
+			this.markSelfWrite(path);
 			await this.app.vault.modify(existing, next);
 		} else {
+			this.markSelfWrite(path);
 			await this.app.vault.create(path, text);
 		}
 	}
@@ -281,8 +445,12 @@ class QuickCaptureModal extends Modal {
 		const doIt = async (): Promise<void> => {
 			const t = ta.value.trim();
 			if (!t) return;
-			await this.plugin.captureText(t);
-			this.close();
+			try {
+				await this.plugin.captureText(t);
+				this.close();
+			} catch {
+				// captureText reported the failure; stay open so the text survives.
+			}
 		};
 
 		btn.addEventListener("click", () => void doIt());
@@ -309,13 +477,29 @@ class DashboardSettingTab extends PluginSettingTab {
 	}
 
 	override getControlValue(key: string): unknown {
-		if (key === "accent") return this.plugin.settings.accent || "#7c3aed";
+		// With no accent configured the dashboard follows the theme, so the picker
+		// should show that colour rather than a fixed purple swatch.
+		if (key === "accent") return this.plugin.settings.accent || themeAccent();
 		return (this.plugin.settings as unknown as Record<string, unknown>)[key];
 	}
 
 	override setControlValue(key: string, value: unknown): void | Promise<void> {
-		const ret = super.setControlValue(key, value);
+		const s = this.plugin.settings;
+		// Never trust the control: clamp here too, so the tab cannot write an
+		// out-of-range value back into a repaired settings file.
+		let v = value;
+		if (key === "columns") v = numOr(value, s.columns, 8, 16);
+		else if (key === "rowHeight") v = numOr(value, s.rowHeight, 60, 140);
+		else if (key === "gap") v = numOr(value, s.gap, 8, 28);
+
+		const ret = super.setControlValue(key, v);
 		if (key === "captureTarget") this.refreshDomState();
+		if (key === "columns") {
+			// The board has to agree with its own column count.
+			clampLayout(s.layout, s.columns);
+			void this.plugin.saveSettings();
+			this.plugin.rerenderDashboard();
+		}
 		return ret;
 	}
 
@@ -348,7 +532,7 @@ class DashboardSettingTab extends PluginSettingTab {
 					{
 						name: "Reset layout",
 						action: () => {
-							s.layout = defaultLayout();
+							s.layout = defaultLayout(s.columns);
 							void this.plugin.saveSettings();
 							this.plugin.rerenderDashboard();
 						},
@@ -423,7 +607,7 @@ class DashboardSettingTab extends PluginSettingTab {
 					},
 					{
 						name: "Daily note format",
-						desc: "Tokens: YYYY, YY, MMM, MM, DD, ddd.",
+						desc: "Tokens: YYYY, YY, MMMM, MMM, MM, DD, dd, dddd, ddd. A format may contain folders (e.g. YYYY/MM/DD).",
 						control: { type: "text", key: "dailyNoteFormat", placeholder: "YYYY-MM-DD" },
 					},
 				],
@@ -467,4 +651,50 @@ class DashboardSettingTab extends PluginSettingTab {
 			},
 		];
 	}
+}
+
+/** True for a non-null, non-array object — the only shape persisted data may have. */
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+	return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+/** True for a layout entry with enough shape to be handled safely. */
+function isWidgetInstance(v: unknown): v is WidgetInstance {
+	return isPlainObject(v) && typeof (v as { type?: unknown }).type === "string";
+}
+
+/** Coerce a persisted value to a whole number inside [min, max]. */
+function numOr(v: unknown, def: number, min: number, max: number): number {
+	const n = typeof v === "number" ? v : Number(v);
+	if (!Number.isFinite(n)) return def;
+	return Math.max(min, Math.min(max, Math.round(n)));
+}
+
+/** Coerce a persisted value to a string, falling back to the default. */
+function strOr(v: unknown, def: string): string {
+	return typeof v === "string" ? v : def;
+}
+
+/** The folder part of a vault path, or "" for a root-level file. */
+function parentOf(path: string): string {
+	const slash = path.lastIndexOf("/");
+	return slash > 0 ? path.slice(0, slash) : "";
+}
+
+/** The inbox file name, always something Obsidian will open as a markdown note. */
+function inboxFileName(raw: string): string {
+	const name = raw.trim();
+	if (!name) return DEFAULT_SETTINGS.inboxFile;
+	return /\.(md|markdown)$/i.test(name) ? name : name + ".md";
+}
+
+/** The accent Obsidian itself is using, so settings match what the dashboard shows. */
+function themeAccent(): string {
+	try {
+		const raw = getComputedStyle(document.body).getPropertyValue("--interactive-accent").trim();
+		if (/^#[0-9a-f]{3,8}$/i.test(raw) || /^rgba?\(/i.test(raw)) return raw;
+	} catch {
+		/* no DOM available */
+	}
+	return DEFAULT_ACCENT;
 }

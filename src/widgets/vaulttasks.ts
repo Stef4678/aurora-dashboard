@@ -1,12 +1,7 @@
-import { App, MarkdownView, setIcon, TFile } from "obsidian";
+import { App, MarkdownView, Notice, setIcon, TFile } from "obsidian";
 import type { WidgetType } from "../types";
 import { registerWidgetType } from "../registry";
-
-interface TaskItem {
-	line: number;
-	text: string;
-	done: boolean;
-}
+import { nearestTaskLine, lineMatchesTask, parseTasks, toggleTaskLine, type ParsedTask } from "../tasks";
 
 interface VaultTask {
 	file: TFile;
@@ -15,11 +10,8 @@ interface VaultTask {
 	done: boolean;
 }
 
-const TASK_RE = /^\s*[-*]\s+\[([ xX])\]\s+(.+)$/;
-const TASK_BOX = /\[([ xX])\]/;
-
 /** In-memory scan cache, keyed by file path. Re-reads only files whose mtime changed. */
-const fileCache = new Map<string, { mtime: number; items: TaskItem[] }>();
+const fileCache = new Map<string, { mtime: number; items: ParsedTask[] }>();
 
 async function scanTasks(app: App, maxFiles: number): Promise<VaultTask[]> {
 	const files = app.vault
@@ -30,21 +22,15 @@ async function scanTasks(app: App, maxFiles: number): Promise<VaultTask[]> {
 	const out: VaultTask[] = [];
 	for (const f of files) {
 		const key = f.path;
-		let items: TaskItem[] | null = null;
+		let items: ParsedTask[] | null = null;
 		const cached = fileCache.get(key);
 		if (cached && cached.mtime === f.stat.mtime) {
 			items = cached.items;
 		} else {
 			try {
-				const content = await app.vault.read(f);
-				const parsed: TaskItem[] = [];
-				const lines = content.split("\n");
-				for (let i = 0; i < lines.length; i++) {
-					const m = TASK_RE.exec(lines[i]);
-					if (m) parsed.push({ line: i, text: m[2].trim(), done: m[1] !== " " });
-				}
-				items = parsed;
-			} catch {
+				items = parseTasks(await app.vault.read(f));
+			} catch (e) {
+				console.error("Aurora Dashboard: could not read tasks from", f.path, e);
 				items = [];
 			}
 			fileCache.set(key, { mtime: f.stat.mtime, items });
@@ -167,28 +153,15 @@ export const vaultTasksType: WidgetType = {
 			const file = t.file;
 			if (!(file instanceof TFile) || file.extension !== "md") return;
 			try {
-				const cur = await ctx.plugin.app.vault.read(file);
-				const lines = cur.split("\n");
-				let idx = t.line;
-				if (idx < 0 || idx >= lines.length) {
-					idx = -1;
-				} else {
-					const m = TASK_RE.exec(lines[idx]);
-					if (!(m && m[2].trim() === t.text)) idx = -1;
-				}
-				if (idx < 0) {
-					idx = lines.findIndex((ln) => {
-						const m = TASK_RE.exec(ln);
-						return !!m && m[2].trim() === t.text;
-					});
-				}
-				if (idx >= 0) {
-					lines[idx] = lines[idx].replace(TASK_BOX, (_m, g1) => (g1 === " " ? "[x]" : "[ ]"));
-					await ctx.plugin.app.vault.modify(file, lines.join("\n"));
-					ctx.refresh();
-				}
-			} catch {
-				/* noop */
+				const lines = (await ctx.plugin.app.vault.read(file)).split("\n");
+				let idx = t.line >= 0 && lineMatchesTask(lines[t.line], t.text) ? t.line : nearestTaskLine(lines, t.text, t.line);
+				if (idx < 0) return;
+				lines[idx] = toggleTaskLine(lines[idx]);
+				await ctx.plugin.app.vault.modify(file, lines.join("\n"));
+				ctx.refresh();
+			} catch (e) {
+				console.error("Aurora Dashboard: could not update that task.", e);
+				new Notice("Could not update that task.");
 			}
 		}
 
@@ -204,8 +177,8 @@ export const vaultTasksType: WidgetType = {
 					view.editor.scrollIntoView({ from: { line: t.line, ch: 0 }, to: { line: t.line + 1, ch: 0 } }, true);
 					view.editor.focus();
 				}
-			} catch {
-				/* noop */
+			} catch (e) {
+				console.error("Aurora Dashboard: could not open that task.", e);
 			}
 		}
 

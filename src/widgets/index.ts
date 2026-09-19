@@ -13,3 +13,4 @@ import "./backlinks";
 import "./progress";
 import "./streak";
 import "./habits";
+import "./embed";
