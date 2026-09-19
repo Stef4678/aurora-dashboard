@@ -41,6 +41,7 @@ class PinnedModal extends Modal {
 	plugin: DashboardPlugin;
 	inst: WidgetInstance;
 	private pins: string[];
+	private input: HTMLInputElement | null = null;
 
 	constructor(app: App, plugin: DashboardPlugin, inst: WidgetInstance) {
 		super(app);
@@ -55,6 +56,11 @@ class PinnedModal extends Modal {
 	}
 
 	onClose(): void {
+		// Pins are written through as they change, so closing the modal any way at
+		// all keeps them. A path typed but never submitted is the one thing left to
+		// rescue — otherwise closing would silently drop it.
+		const typed = this.input ? this.input.value.trim() : "";
+		if (typed && !this.pins.includes(typed)) this.addPath(typed);
 		this.contentEl.empty();
 	}
 
@@ -67,16 +73,12 @@ class PinnedModal extends Modal {
 			cls: "dash-qa-input",
 			attr: { placeholder: "Note path (start typing to search)…", list: "dash-pinned-notes" },
 		});
+		this.input = input;
 		const btn = addRow.createDiv("dash-btn dash-btn-accent");
 		setIcon(btn, "plus");
-		btn.addEventListener("click", () => void this.addPath(input.value.trim(), input));
+		btn.addEventListener("click", () => this.submit(input));
 
-		const addNow = (): void => {
-			const p = input.value.trim();
-			if (p) {
-				this.addPath(p, input);
-			}
-		};
+		const addNow = (): void => this.submit(input);
 		input.addEventListener("keydown", (e) => {
 			if (e.key === "Enter") {
 				e.preventDefault();
@@ -103,7 +105,7 @@ class PinnedModal extends Modal {
 			setIcon(del, "x");
 			del.setAttr("aria-label", "Unpin");
 			del.addEventListener("click", () => {
-				this.pins = this.pins.filter((x) => x !== p);
+				this.removePath(p);
 				this.render();
 			});
 		}
@@ -111,31 +113,53 @@ class PinnedModal extends Modal {
 		contentEl.createDiv("dash-modal-foot", (foot) => {
 			const done = foot.createDiv("dash-btn dash-btn-accent");
 			done.setText("Done");
-			done.addEventListener("click", () => void this.commit());
+			done.addEventListener("click", () => this.commit());
 		});
 		input.focus();
 	}
 
-	private addPath(p: string, input: HTMLInputElement): void {
+	/** Take the typed path, persist it, and re-render the list. */
+	private submit(input: HTMLInputElement): void {
+		const p = input.value.trim();
 		if (!p) return;
-		if (this.plugin.app.vault.getAbstractFileByPath(p) instanceof TFile) {
-			if (!this.pins.includes(p)) {
-				this.pins.push(p);
-				new Notice("Pinned " + p);
-			} else {
-				new Notice("Already pinned");
-			}
-		} else {
-			new Notice("Note not found");
-		}
-		this.render();
+		this.addPath(p);
 		input.value = "";
+		this.render();
 	}
 
-	private async commit(): Promise<void> {
+	/**
+	 * Add a validated path and write it through right away: the Notice says
+	 * "Pinned", so that has to be true before the modal is closed.
+	 */
+	private addPath(p: string): void {
+		if (!p) return;
+		if (this.pins.includes(p)) {
+			new Notice("Already pinned");
+			return;
+		}
+		if (!(this.plugin.app.vault.getAbstractFileByPath(p) instanceof TFile)) {
+			new Notice("Note not found");
+			return;
+		}
+		this.pins.push(p);
+		new Notice("Pinned " + p);
+		void this.persist();
+	}
+
+	private removePath(p: string): void {
+		this.pins = this.pins.filter((x) => x !== p);
+		void this.persist();
+	}
+
+	/** Save the pins and refresh the widget behind the modal. */
+	private async persist(): Promise<void> {
 		this.inst.settings.pins = [...this.pins];
 		await this.plugin.saveSettings();
 		this.plugin.refreshWidget(this.inst.uid);
+	}
+
+	private commit(): void {
+		// Everything is already saved; closing is enough (onClose rescues a typed path).
 		this.close();
 	}
 }

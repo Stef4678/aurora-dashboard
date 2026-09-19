@@ -237,6 +237,17 @@ class EmbedSettingsModal extends Modal {
 		});
 	}
 
+	/** Write the draft through and refresh the widget behind the modal. */
+	private async persist(): Promise<void> {
+		this.inst.title = this.title.trim() || undefined;
+		this.inst.settings.mode = this.draft.mode;
+		this.inst.settings.path = this.draft.path;
+		this.inst.settings.markdown = this.draft.markdown;
+		this.inst.settings.scroll = this.draft.scroll;
+		await this.plugin.saveSettings();
+		this.plugin.refreshWidget(this.inst.uid);
+	}
+
 	private async commit(): Promise<void> {
 		if (this.draft.mode === "note") {
 			const path = this.draft.path.trim();
@@ -246,17 +257,19 @@ class EmbedSettingsModal extends Modal {
 			}
 			this.draft.path = path;
 		}
-		this.inst.title = this.title.trim() || undefined;
-		this.inst.settings.mode = this.draft.mode;
-		this.inst.settings.path = this.draft.path;
-		this.inst.settings.markdown = this.draft.markdown;
-		this.inst.settings.scroll = this.draft.scroll;
-		await this.plugin.saveSettings();
-		this.plugin.refreshWidget(this.inst.uid);
+		await this.persist();
 		this.close();
 	}
 
 	onClose(): void {
+		// The editor commits on Done, but closing with the ✕ must not throw the draft
+		// away. An unresolvable note path falls back to the last working one.
+		if (this.draft.mode === "note") {
+			const path = this.draft.path.trim();
+			const known = path && this.plugin.app.vault.getAbstractFileByPath(path) instanceof TFile;
+			this.draft.path = known ? path : typeof this.inst.settings.path === "string" ? this.inst.settings.path : "";
+		}
+		void this.persist();
 		this.contentEl.empty();
 	}
 }

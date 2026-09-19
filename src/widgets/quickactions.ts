@@ -199,6 +199,7 @@ class QuickActionsModal extends Modal {
 			add.appendText(" Add action");
 			add.addEventListener("click", () => {
 				this.actions.push(defaultAction("command"));
+				void this.persist();
 				this.render();
 			});
 			const done = foot.createDiv("dash-btn dash-btn-ghost");
@@ -238,6 +239,7 @@ class QuickActionsModal extends Modal {
 		del.setAttr("aria-label", "Remove action");
 		del.addEventListener("click", () => {
 			this.actions = this.actions.filter((x) => x.id !== a.id);
+			void this.persist();
 			this.render();
 		});
 	}
@@ -274,13 +276,21 @@ class QuickActionsModal extends Modal {
 	}
 
 	onClose(): void {
+		// Labels and targets are only local until now: persist on the way out, so
+		// closing with the ✕ or Escape cannot silently discard the edits.
+		void this.persist();
 		this.contentEl.empty();
 	}
 
-	private async commit(): Promise<void> {
+	/** Save the actions and refresh the widget behind the modal. */
+	private async persist(): Promise<void> {
 		this.inst.settings.actions = this.actions.map(sanitizeAction);
 		await this.plugin.saveSettings();
 		this.plugin.refreshWidget(this.inst.uid);
+	}
+
+	private async commit(): Promise<void> {
+		await this.persist();
 		this.close();
 	}
 }

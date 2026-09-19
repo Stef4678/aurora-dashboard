@@ -257,6 +257,7 @@ class HabitsModal extends Modal {
 			const name = addInput.value.trim();
 			if (!name) return;
 			this.habits.push({ id: uid(), name });
+			void this.persist();
 			addInput.value = "";
 			this.render();
 		};
@@ -281,6 +282,7 @@ class HabitsModal extends Modal {
 			del.setAttr("aria-label", "Remove habit");
 			del.addEventListener("click", () => {
 				this.habits = this.habits.filter((x) => x.id !== h.id);
+				void this.persist();
 				this.render();
 			});
 		}
@@ -291,7 +293,7 @@ class HabitsModal extends Modal {
 			clear.setAttr("aria-label", "Erase all completion history for these habits");
 			clear.addEventListener("click", () => {
 				this.clearLog = true;
-				new Notice("Habit history will be cleared when you press Done");
+				new Notice("Habit history will be cleared when you close this window");
 			});
 			const done = foot.createDiv("dash-btn dash-btn-accent");
 			done.setText("Done");
@@ -301,7 +303,15 @@ class HabitsModal extends Modal {
 		addInput.focus();
 	}
 
-	private async commit(): Promise<void> {
+	onClose(): void {
+		// Habit names, the window length and a pending "clear history" are local
+		// until now: persist on the way out, whatever closed the modal.
+		void this.persist();
+		this.contentEl.empty();
+	}
+
+	/** Save the habit list, window length and pruned history, then refresh the widget. */
+	private async persist(): Promise<void> {
 		this.inst.settings.days = this.days;
 		this.inst.settings.habits = buildHabits(this.habits);
 		// Drop history for habits that no longer exist (or everything when cleared).
@@ -311,11 +321,11 @@ class HabitsModal extends Modal {
 		this.inst.settings.log = log;
 		await this.plugin.saveSettings();
 		this.plugin.refreshWidget(this.inst.uid);
-		this.close();
 	}
 
-	onClose(): void {
-		this.contentEl.empty();
+	private async commit(): Promise<void> {
+		await this.persist();
+		this.close();
 	}
 }
 

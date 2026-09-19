@@ -1,5 +1,5 @@
 require("./stub-obsidian");
-const { App } = require("obsidian");
+const { App, Modal } = require("obsidian");
 const AuroraDashboardPlugin = require("../src/main").default;
 const { DashboardView } = require("../src/view");
 const { getWidgetTypes, registerWidgetType } = require("../src/registry");
@@ -836,6 +836,105 @@ async function main() {
 	document.body.style.setProperty("--interactive-accent", "#123456");
 	checks.accentControlFollowsTheme = tabPlugin._settingTab.getControlValue("accent") === "#123456";
 	document.body.style.removeProperty("--interactive-accent");
+
+	// ---- modal editors save as they go (reported bug: pins lost on close) ----
+	// Every one of these editors used to keep its edits in a local array and only
+	// write them on an explicit "Done"; closing with the ✕ discarded the lot.
+	const modalPlugin = new AuroraDashboardPlugin(new App(), { id: "cool-dashboard" });
+	modalPlugin._data = {
+		version: 2,
+		layout: [
+			{ type: "pinned", uid: "pn", x: 0, y: 0, w: 4, h: 3, settings: { pins: [] } },
+			{ type: "quickactions", uid: "qa1", x: 0, y: 3, w: 4, h: 3, settings: { actions: [] } },
+			{ type: "habits", uid: "hb2", x: 0, y: 6, w: 6, h: 4, settings: { habits: [], days: 7, log: {} } },
+			{ type: "embed", uid: "em1", x: 6, y: 6, w: 6, h: 4, settings: { mode: "daily", path: "", markdown: "", scroll: true } },
+		],
+	};
+	await modalPlugin.onload();
+	await modalPlugin.app.vault.create("RESSOURCES/Liens/AVAIA.md", "# AVAIA");
+	await modalPlugin.app.vault.create("Notes/Other.md", "# Other");
+	const modalLeaf = modalPlugin.app.workspace.getLeaf(false);
+	const modalView = new DashboardView(modalLeaf, modalPlugin);
+	modalLeaf.view = modalView; // refreshWidget needs the leaf to expose the view
+	await modalView.onOpen();
+	await tick(40);
+
+	const byUid = (uid) => modalPlugin.settings.layout.find((i) => i.uid === uid);
+	const pinInst = byUid("pn");
+	const widgetText = (uid) => {
+		const card = modalView.contentEl.querySelector(`.dash-widget[data-uid="${uid}"]`);
+		return card ? card.textContent : "";
+	};
+
+	// pinned: add a note and never press Done
+	getWidgetTypes().find((t) => t.type === "pinned").openSettings(modalPlugin, pinInst);
+	await tick(20);
+	const pinModal = Modal.last;
+	const pinInput = pinModal.contentEl.querySelector("input.dash-qa-input");
+	pinInput.value = "RESSOURCES/Liens/AVAIA.md";
+	pinModal.contentEl.querySelector(".dash-qa-row .dash-btn").dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+	await tick(40);
+	checks.pinSavedWithoutDone = JSON.stringify(pinInst.settings.pins) === '["RESSOURCES/Liens/AVAIA.md"]';
+	checks.pinnedWidgetUpdatesLive = widgetText("pn").includes("AVAIA");
+
+	// a path typed but never submitted is rescued when the modal closes
+	// (re-query: submitting above re-rendered the modal, replacing the input)
+	const pinInputAfterAdd = pinModal.contentEl.querySelector("input.dash-qa-input");
+	pinInputAfterAdd.value = "Notes/Other.md";
+	pinModal.close();
+	await tick(40);
+	checks.typedPathRescuedOnClose = (pinInst.settings.pins || []).includes("Notes/Other.md");
+
+	// unpinning persists immediately too
+	getWidgetTypes().find((t) => t.type === "pinned").openSettings(modalPlugin, pinInst);
+	await tick(20);
+	const pinModal2 = Modal.last;
+	const pinRows = pinModal2.contentEl.querySelectorAll(".dash-qa-list .dash-qa-row");
+	if (pinRows.length) {
+		pinRows[0].querySelector(".dash-btn-danger").dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+		await tick(40);
+	}
+	checks.unpinPersistsImmediately =
+		(pinInst.settings.pins || []).length === 1 && pinInst.settings.pins[0] === "Notes/Other.md";
+	pinModal2.close();
+
+	// quick actions: add one, close without Done
+	const qaInst2 = byUid("qa1");
+	getWidgetTypes().find((t) => t.type === "quickactions").openSettings(modalPlugin, qaInst2);
+	await tick(20);
+	const qaModal = Modal.last;
+	qaModal.contentEl.querySelector(".dash-modal-foot .dash-btn-accent").dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+	await tick(40);
+	checks.quickActionSavedWithoutDone = Array.isArray(qaInst2.settings.actions) && qaInst2.settings.actions.length === 1;
+	qaModal.close();
+
+	// habits: add one, close without Done
+	const habInst2 = byUid("hb2");
+	getWidgetTypes().find((t) => t.type === "habits").openSettings(modalPlugin, habInst2);
+	await tick(20);
+	const habModal = Modal.last;
+	const habAddRow = [...habModal.contentEl.querySelectorAll(".dash-qa-row")][1];
+	habAddRow.querySelector("input").value = "Meditate";
+	habAddRow.querySelector(".dash-btn").dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+	await tick(40);
+	checks.habitSavedWithoutDone = (habInst2.settings.habits || []).some((h) => h.name === "Meditate");
+	habModal.close();
+
+	// embed: edit inline markdown, close without Done
+	const embInst2 = byUid("em1");
+	getWidgetTypes().find((t) => t.type === "embed").openSettings(modalPlugin, embInst2);
+	await tick(20);
+	const embModal = Modal.last;
+	const modeSelect = embModal.contentEl.querySelector("select.dash-embed-select");
+	modeSelect.value = "markdown";
+	modeSelect.dispatchEvent(new window.Event("change", { bubbles: true }));
+	await tick(20);
+	const mdArea = embModal.contentEl.querySelector("textarea.dash-embed-md");
+	mdArea.value = "closed without Done";
+	mdArea.dispatchEvent(new window.Event("input", { bubbles: true }));
+	embModal.close();
+	await tick(40);
+	checks.embedDraftSavedOnClose = embInst2.settings.mode === "markdown" && embInst2.settings.markdown === "closed without Done";
 
 	checks.settingsSaved = await plugin.saveSettings().then(() => true).catch(() => false);
 

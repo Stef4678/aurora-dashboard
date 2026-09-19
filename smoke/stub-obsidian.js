@@ -331,6 +331,7 @@ class Modal {
 		this.containerEl.appendChild(this.modalEl);
 	}
 	open() {
+		Modal.last = this; // lets a test close the modal the way a user would (✕ / Escape)
 		document.body.appendChild(this.containerEl);
 		this.onOpen();
 	}
