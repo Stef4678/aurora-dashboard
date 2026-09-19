@@ -56,13 +56,13 @@ The plugin isn't on the community plugin list yet. To use it:
 1. Build it (`npm run build`) or download a release.
 2. Copy the `aurora-dashboard` folder into `<your-vault>/.obsidian/plugins/`.
 3. Restart Obsidian, then enable **Aurora Dashboard** under *Settings → Community plugins*.
-4. Open it from the ribbon icon, or with `Ctrl/Cmd + Shift + D`.
+4. Open it from the ribbon icon, the command palette (*Open dashboard*), or a hotkey you assign yourself in *Settings → Hotkeys*.
 
 The plugin is not desktop-only: the dashboard renders as a single column on narrow screens and in edit mode the grip and the resize corner work with touch, so you can rearrange widgets on a phone or tablet with a mouse-free gesture. Install it on mobile the same way as any other plugin (community plugin list, or copy the folder into your vault).
 
 ## Usage
 
-- **Open the dashboard** — ribbon icon, `Ctrl/Cmd + Shift + D`, or the command palette.
+- **Open the dashboard** — ribbon icon, the command palette, or a hotkey you assign in *Settings → Hotkeys* (search for “Aurora”). No default binding is set, so nothing collides with your own shortcuts.
 - **Edit the layout** — click the pencil button in the dashboard's control bar (or run *Toggle dashboard edit mode*). Drag widgets by their grip, resize from the corner, use the gear for per-widget settings, the ✕ to remove, and the **+** to add new widgets. **Cancel editing** puts the layout back the way it was.
 - **Leave it open** — the board follows the calendar on its own: at midnight the calendar, habits grid, heatmap and Today widget roll over to the new day without a reload.
 - **Work your tasks** — the **Today** widget manages today's daily-note checklist; the **All tasks** widget lists every open checkbox task in your vault (any list marker; checkboxes inside code blocks are left alone). Click a task to jump to it in its note; tick the box to toggle it.

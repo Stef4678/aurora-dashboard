@@ -39,7 +39,8 @@ export default class AuroraDashboardPlugin extends Plugin implements DashboardPl
 		this.addCommand({
 			id: "open-dashboard",
 			name: "Open dashboard",
-			hotkeys: [{ modifiers: ["Mod", "Shift"], key: "d" }],
+			// No default hotkey on purpose: shipping one can collide with bindings
+			// the user already has. Assign it under Settings -> Hotkeys.
 			callback: () => void this.activateView(),
 		});
 		this.addCommand({

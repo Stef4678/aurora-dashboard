@@ -37,8 +37,10 @@ function readConfig(inst: WidgetInstance): EmbedConfig {
 function stripFrontmatter(md: string): string {
 	if (!md.startsWith("---")) return md;
 	const m = /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(\r?\n|$)/.exec(md);
-	// Require a `key:` line, so a note that merely opens with a horizontal rule survives.
-	if (!m || !/^[^\s:]+:/.test(m[1].trimStart())) return md;
+	// Require a `key:` line, so a note that merely opens with a horizontal rule
+	// survives. `replace(/^\s+/)` rather than `trimStart()`: the plugin targets
+	// ES2018, where the `trim*` methods do not exist.
+	if (!m || !/^[^\s:]+:/.test(m[1].replace(/^\s+/, ""))) return md;
 	return md.slice(m[0].length);
 }
 

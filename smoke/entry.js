@@ -829,6 +829,34 @@ async function main() {
 	const releaseYml = require("fs").readFileSync(__dirname + "/../.github/workflows/release.yml", "utf8");
 	checks.releaseWorkflowChecksTag = releaseYml.includes("Verify the tag matches the plugin version");
 
+	// ---- Obsidian review guards (things tsc cannot catch) ----
+	const fs = require("fs");
+	const srcFiles = [];
+	(function walk(dir) {
+		for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+			const p = dir + "/" + entry.name;
+			if (entry.isDirectory()) walk(p);
+			else if (p.endsWith(".ts")) srcFiles.push(p);
+		}
+	})(__dirname + "/../src");
+	const es2019Offenders = [];
+	for (const file of srcFiles) {
+		fs.readFileSync(file, "utf8")
+			.split("\n")
+			.forEach((line, i) => {
+				if (/\.(trimStart|trimEnd|flatMap|matchAll|replaceAll)\(|Object\.fromEntries/.test(line)) {
+					es2019Offenders.push(file.split(/[\\/]/).pop() + ":" + (i + 1));
+				}
+			});
+	}
+	// The plugin targets ES2018, where those methods do not exist; the reviewer
+	// reports them as unsafe calls because the type information degrades to `any`.
+	checks.noEs2019LibraryCalls = es2019Offenders;
+	checks.noDefaultHotkeys = (plugin._commands || []).every((c) => !c.hotkeys);
+	const readmeText = fs.readFileSync(__dirname + "/../README.md", "utf8");
+	checks.readmeSendsUsersToHotkeySettings = readmeText.includes("Settings → Hotkeys");
+	checks.readmeDoesNotPromiseADefaultHotkey = !readmeText.includes("Ctrl/Cmd + Shift + D");
+
 	// ---- LOW-21: the accent picker shows what the dashboard uses ----
 	tabPlugin.settings.accent = "#10b981";
 	checks.accentControlShowsStoredAccent = tabPlugin._settingTab.getControlValue("accent") === "#10b981";
